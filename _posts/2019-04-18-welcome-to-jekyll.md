@@ -1,11 +1,16 @@
 ---
+<<<<<<< HEAD:_posts/Malware Analysis/2019-04-18-welcome-to-jekyll.md
 title: "De-obfuscationg a PowerShell Cobalt Strike beacon stager"
 date: 2023-07-09T15:34:30-04:00
+=======
+title: "Welcome to Jekyll!"
+date: 2019-04-18T15:34:30-04:00
+>>>>>>> parent of d27c65c (Removing default pages):_posts/2019-04-18-welcome-to-jekyll.md
 categories:
   - blog
 tags:
-  - Malware Analysis
-  - Cobalt Strike
+  - Jekyll
+  - update
 ---
 
 ## Discovery
