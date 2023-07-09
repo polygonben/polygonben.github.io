@@ -16,7 +16,7 @@
 title: Polygonben
 email: cybenfolland@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
-  CTF n00b & Security research
+  CTF n00b & Security researcher
 twitter_username: polygonben
 github_username: polygonben
 minimal_mistakes_skin: dark
@@ -56,19 +56,16 @@ plugins:
   - jekyll-include-cache
 
 author:
-  name   : "First Lastname"
+  name   : "Ben Folland"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "My awesome biography constrained to a sentence or two goes here."
+  bio    : "CTF n00b & Security researcher"
   links:
-    - label: "Website"
-      icon: "fas fa-fw fa-link"
-      url: "https://"
     - label: "Twitter"
       icon: "fab fa-fw fa-twitter-square"
-      url: "https://twitter.com/"
+      url: "https://twitter.com/polygonben"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://github.com/"
+      url: "https://github.com/polygonben"
     - label: "Instagram"
       icon: "fab fa-fw fa-instagram"
       url: "https://instagram.com/"
