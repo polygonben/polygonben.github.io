@@ -2,7 +2,7 @@
 title: "De-obfuscationg a PowerShell Cobalt Strike beacon stager"
 date: 2023-07-09T15:34:30-04:00
 categories:
-  - blog
+  - Blog
 tags:
   - Malware Analysis
   - Cobalt Strike
