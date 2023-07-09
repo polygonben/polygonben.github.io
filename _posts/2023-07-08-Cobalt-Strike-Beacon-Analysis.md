@@ -2,7 +2,8 @@
 title: "Cobalt Strike Beacon Analysis"
 categories:
   - Malware Analysis
-
+header:
+  teaser: "/assets/images/CobaltStrikeBeaconAnalysis1/1.png"
 ---
 
 Cobalt Strike, which was originally developed as a legitimate security tool used for adversary emulation by Red Teams, has become a double-edged sword in the realm of cybersecurity. Malicous actors have cracked the software, since then it's been abused by adversaries ranging from hacktivists to APTs to fufill their needs. This is article is an analysis of the PowerShell script that leads to execution of a Cobalt Strike beacon.  
@@ -11,7 +12,7 @@ Cobalt Strike, which was originally developed as a legitimate security tool used
 
 I recently discovered this malicious PowerShell script from a [Twitter post by @xorJosh](https://twitter.com/xorJosh/status/1655905247334735878). In his tweet he described an Oracle related service was exploited to download and execute a PowerShell script.
 
-[![1](/assets/images/CobaltStrikeBeaconAnalysis1/InitalExecution.png)](/assets/images/CobaltStrikeBeaconAnalysis1/InitalExecution.png)
+[![1](/assets/images/CobaltStrikeBeaconAnalysis1/1.png)](/assets/images/CobaltStrikeBeaconAnalysis1/1.png)
 
 The malware sample mentioned can be found on [MalwareBazaar](https://bazaar.abuse.ch/sample/9c9e8841d706406bc23d05589f77eec6f8df6d5e4076bc6a762fdb423bfe8c24/)
 
