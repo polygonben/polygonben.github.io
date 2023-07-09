@@ -16,7 +16,7 @@
 title: Polygonben
 email: cybenfolland@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
-  CTF n00b & Security researcher
+  CTFs & Security research
 twitter_username: polygonben
 github_username: polygonben
 minimal_mistakes_skin: dark
@@ -66,21 +66,15 @@ author:
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
       url: "https://github.com/polygonben"
-    - label: "Instagram"
-      icon: "fab fa-fw fa-instagram"
-      url: "https://instagram.com/"
 
 footer:
   links:
     - label: "Twitter"
       icon: "fab fa-fw fa-twitter-square"
-      url: "https://twitter.com/"
+      url: "https://twitter.com/polygonben"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://github.com/"
-    - label: "Instagram"
-      icon: "fab fa-fw fa-instagram"
-      url: "https://instagram.com/"
+      url: "https://github.com/polygonben"
 
 defaults:
   # _posts
