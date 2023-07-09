@@ -7,6 +7,7 @@ tags:
   - Cobalt Strike
 ---
 
+Cobalt Strike, which was originally developed as a legitimate security tool used for adversary emulation by Red Teams, has become a double-edged sword in the realm of cybersecurity. Malicous actors have cracked the software, since then it's been abused by adversaries ranging from hacktivists to APTs to fufill their needs. This is article is an analysis of the PowerShell script that leads to execution of a Cobalt Strike beacon.  
 
 ## Discovery
 
