@@ -10,7 +10,7 @@ Cobalt Strike, which was originally developed as a legitimate security tool used
 
 I recently discovered this malicious PowerShell script from a [Twitter post by @xorJosh](https://twitter.com/xorJosh/status/1655905247334735878). In his tweet he described an Oracle related service was exploited to download and execute a PowerShell script.
 
-[![1](/assets/images/CobaltStrikeBeaconAnalysis1/1.png)](/assets/images/CobaltStrikeBeaconAnalysis1/1.png){: .align-center}
+[![1](/assets/images/CobaltStrikeBeaconAnalysis1/1.png)](/assets/images/CobaltStrikeBeaconAnalysis1/1.png){: .full}
 
 The malware sample mentioned can be found on [MalwareBazaar](https://bazaar.abuse.ch/sample/9c9e8841d706406bc23d05589f77eec6f8df6d5e4076bc6a762fdb423bfe8c24/). Lets download this ourselves and have a look!
 
@@ -104,3 +104,9 @@ Going through this line by line, we first see a conditional statement, `If ([Int
 The next line, `[Byte[]]$var_code = [System.Convert]::FromBase64String('bn...4/')`, Base64 decodes a massive string, and then stores it as a byte array. The for loop that follows this, iterates over each element of this byte array, performing the following operation - `$var_code[$x] = $var_code[$x] -bxor 35`. This just bitwise XORs each element of the array with decimal 35. Interesting
 
 We can make a conclusion here that the string `bnli...P84/` is XOR encrypted & Base64 encoded. Let's recreate this in CyberChef.
+
+[![5](/assets/images/CobaltStrikeBeaconAnalysis1/5.png)](/assets/images/CobaltStrikeBeaconAnalysis1/5.png){: .full}
+
+We can see the recongizable PE DOS header `MZ` identifiying this file as an Windows Executable. Let's download this file locally and move onto Stage 2!
+
+## Static Analysis (Stage 2)
