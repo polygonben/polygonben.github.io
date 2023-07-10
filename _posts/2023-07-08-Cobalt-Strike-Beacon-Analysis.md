@@ -110,3 +110,17 @@ We can make a conclusion here that the string `bnli...P84/` is XOR encrypted & B
 We can see the recongizable PE DOS header `MZ` identifiying this file as an Windows Executable. Let's download this file locally and move onto Stage 2!
 
 ## Static Analysis (Stage 2)
+
+For confirmation, I used the Linux `file` command to verify I'm dealing with an .exe file.
+
+[![6](/assets/images/CobaltStrikeBeaconAnalysis1/6.png)](/assets/images/CobaltStrikeBeaconAnalysis1/6.png){: .full}
+
+Let's run the `strings` command, to see if any we can recover anything interesting.
+
+[![7](/assets/images/CobaltStrikeBeaconAnalysis1/7.png)](/assets/images/CobaltStrikeBeaconAnalysis1/7.png){: .full} 
+
+Interesting, we see `beacon.x64.dll`, certaintly looks dodgy right? [Googling this](https://www.cobaltstrike.com/blog/cobalt-strike-and-yara-can-i-have-your-signature/) reveals this is a common string found in Cobalt Strike beacons. Know we now for sure this a Cobalt Strike beacon, let's try extract the configuration. 
+
+To do this task, I took advanatge of [this](https://github.com/DidierStevens/DidierStevensSuite/blob/master/1768.py) great tool.
+
+[![8](/assets/images/CobaltStrikeBeaconAnalysis1/8.png)](/assets/images/CobaltStrikeBeaconAnalysis1/8.png){: .full} 
