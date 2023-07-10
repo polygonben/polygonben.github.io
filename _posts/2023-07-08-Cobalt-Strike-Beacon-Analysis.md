@@ -30,7 +30,7 @@ IEX (New-Object IO.StreamReader(New-Object IO.Compression.GzipStream($s,[IO.Comp
 
 This Gzip decompresses the variable `s`, and inputs into the StreamReader object. The contents of the StreamReader object are then passed as input into the IEX function, Invoke-Expression, which executes a given PowerShell command or script. From this, we can take a guess that `s` is gzip compressed, PowerShell code? Let's recreate this process of Base64 decoding & Gzip decompressing in CyberChef.
 
-[![2](/assets/images/CobaltStrikeBeaconAnalysis1/2.png)](/assets/images/CobaltStrikeBeaconAnalysis1/2.png){: .align-center}
+[![2](/assets/images/CobaltStrikeBeaconAnalysis1/2.png)](/assets/images/CobaltStrikeBeaconAnalysis1/2.png){: .full}
 
 We can see that indeed, this was more PowerShell code to be executed. Let's download this locally and analyze this script
 
