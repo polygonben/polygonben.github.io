@@ -55,3 +55,43 @@ Let’s dig deeper to confirm the DLL loaded into the memory of this process are
 Nice, we have confirmation that the .NET CLR has been loaded into svchost.exe memory!
 
 You will have noticed that yes I did use `powershell.exe` to inject the process with PowerShell in the first place (although the PowerShell is executing from svchost.exe, not `powershell.exe`), which would no-doubt flag detection and be logged, however with Cobalt Strike’s `execute-assembly` or `powerpick` , this would not be the case. Let’s assume I used the latter and I’ll now continue to search for forensic artefacts with sysmon logs, chainsaw & some custom Sigma rules I created!
+
+Sysmon Event ID 7, `ImageLoad`, logs when a DLL is loaded into a processes memory. Due the sheer quantity of these Event ID 7s with normal behaviour it’s unpractical to manually inspect each log, instead chainsaw and a Sigma ruleset will help extract what we are looking for. I couldn’t find any Sigma ruleset online that alerted DLL injection so I decided made my own. You can download it from [here](https://github.com/polygonben/Unmanaged-.NET-Process-Injection-Sigma-rule/blob/main/unmanaged_powershell_process_injection_detection.yml).
+
+```yml
+...
+logsource:
+    product: windows
+    service: sysmon
+detection:
+    selection:
+        EventID: 7
+        ImageLoaded:
+           - "*\\clr.dll"
+           - "*\\clrjit.dll"
+    filter:
+        EventID: 7
+        Image:
+            - "C:\\Windows\\System32\\WindowsPowerShell\\*" 
+            - "C:\\Program Files\\Microsoft Visual Studio\\*"   
+            - "C:\\Program Files (x86)\\Overwolf\\*"
+            - "C:\\Program Files (x86)\\Common Files\\Overwolf\\*" 
+    condition: selection and not filter
+falsepositives:
+    - Very possible. False postives will have to be added to filter list
+level: high
+```
+
+These filters seemed to work on my machine, but I’m sure there will be false-positives that I didn’t experience in my testing. If in any of your experience with this Sigma rule that is the case, please PM me or comment on this the Image file path and I’ll update it.
+
+Using this Sigma ruleset with chainsaw we see the following the results.
+
+[![9](/assets/images/NETProcessInjection/9.png)](/assets/images/NETProcessInjection/9.png){: .full}
+
+[![10](/assets/images/NETProcessInjection/10.png)](/assets/images/NETProcessInjection/10.png){: .full}
+
+e’ve got two detections from the Sigma rule, these detections are for `clr.dll` & `clrjit.dll` being loaded from svchost.exe on PID 1608, as expected. If you’ve discovered a forensic artefact of managed (.NET) process in an investigation, and your unsure if it should be managed, a quick way to confirm it’s legitimacy is by using the Sysinternal tool [ListDLLs](https://learn.microsoft.com/en-us/sysinternals/downloads/listdlls) in a sandboxed Windows environment.
+
+Nice! We’ve now found a way to carve out the evidence of unmanaged PowerShell process injection in the mass of logs. However, there is a few downsides to this method. Firstly, there is likely to be false positives, and secondly we don’t know what malicious code was actually executed, only that is has happened.
+
+In my future blog posts, I’ll be explaining how we can counter this and actually start to unveil the contents of the loaded .NET assembly.
