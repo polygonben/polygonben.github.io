@@ -55,6 +55,8 @@ Let’s dig deeper to confirm the DLL loaded into the memory of this process are
 
 Nice, we have confirmation that the .NET CLR has been loaded into svchost.exe memory!
 
+## Detection with Sysmon
+
 You will have noticed that yes I did use `powershell.exe` to inject the process with PowerShell in the first place (although the PowerShell is executing from svchost.exe, not `powershell.exe`), which would no-doubt flag detection and be logged, however with Cobalt Strike’s `execute-assembly` or `powerpick` , this would not be the case. Let’s assume I used the latter and I’ll now continue to search for forensic artefacts with sysmon logs, chainsaw & some custom Sigma rules I created!
 
 Sysmon Event ID 7, `ImageLoad`, logs when a DLL is loaded into a processes memory. Due the sheer quantity of these Event ID 7s with normal behaviour it’s unpractical to manually inspect each log, instead chainsaw and a Sigma ruleset will help extract what we are looking for. I couldn’t find any Sigma ruleset online that alerted DLL injection so I decided made my own. You can download it from [here](https://github.com/polygonben/Unmanaged-.NET-Process-Injection-Sigma-rule/blob/main/unmanaged_powershell_process_injection_detection.yml).
