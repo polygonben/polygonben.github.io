@@ -77,8 +77,30 @@ If ([IntPtr]::size -eq 8) {
 
 ```
 
-The first defined function, `func_get_proc_address()`, basically retrieves the memory address of a specified procedure/function from a specified DLL. We can see this is used here, `$var_var = ... func_get_proc_address kernel32.dll VirtualAlloc), (...`. VirtualAlloc is a function of the Win32 API used to allocate a certain region of memory, of the calling process. We can see on the next line the parameters of this function, `$var_va.Invoke([IntPtr]::Zero, $var_code.Length, 0x3000, 0x40)` (We'll get onto this `$var_code` variable in a second). Referencing the documentation on the VirtualAlloc function reveals:
+The first defined function, `func_get_proc_address()`, basically retrieves the memory address of a specified procedure/function from a specified DLL. We can see this is used here, `$var_var = ... func_get_proc_address kernel32.dll VirtualAlloc), (...`. 
+
+VirtualAlloc is a function of the Win32 API used to allocate a certain region of memory, of the calling process. We can see on the next line the parameters of this function, `$var_buffer = $var_va.Invoke([IntPtr]::Zero, $var_code.Length, 0x3000, 0x40)` (We'll get onto this `$var_code` variable in a second). Referencing the [documentation](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) on the VirtualAlloc function reveals:
 
 [![3](/assets/images/CobaltStrikeBeaconAnalysis1/3.png)](/assets/images/CobaltStrikeBeaconAnalysis1/3.png){: .full}
 
-We 
+We can now match up the corresponding parameters to the Microsoft documentation, but the one I'm most interested in is `flProtect`, which is set to `0x40`. `flProtect` defines the permissions given to an set allocation of memory.
+
+[![4](/assets/images/CobaltStrikeBeaconAnalysis1/4.png)](/assets/images/CobaltStrikeBeaconAnalysis1/4.png){: .full}
+
+We can see `0x40` is equivalent to `PAGE_EXECUTE_READWRITE`, which indicates the allocated memory is more than likely going to be used to execute malicous code.
+
+```ruby
+If ([IntPtr]::size -eq 8) {
+  [Byte[]]$var_code = [System.Convert]::FromBase64String('bnlicXZrqsZros8DIyMja64+ydzc3Guq/Gui4GdHIiPc8GKb05aBdUsnIyMjeWuq2tzzIyMjIyMjIyMj2yMjIy08mS0jlyruApsib+4Cd0tKUANTUUxEUUJOA0BCTU1MVwNBRgNRVk0DSk0DZ2xwA05MR
+  ...OP84/')
+
+  for ($x = 0; $x -lt $var_code.Count; $x++) {
+    $var_code[$x] = $var_code[$x] -bxor 35
+  }
+```
+
+Going through this line by line, we first see a conditional statement, `If ([IntPtr]::size -eq 8) {...`. `[IntPtr]::size` is an integer that defines the architecture type. In a 32-bit system this is equal to `4` and in a 64-bit system this is equal to `8`. This first line checks if the program is of a 64-bit architecture, it'll continue executing, otherwise it'll finish.
+
+The next line, `[Byte[]]$var_code = [System.Convert]::FromBase64String('bn...4/')`, Base64 decodes a massive string, and then stores it as a byte array. The for loop that follows this, iterates over each element of this byte array, performing the following operation - `$var_code[$x] = $var_code[$x] -bxor 35`. This just bitwise XORs each element of the array with decimal 35. Interesting
+
+We can make a conclusion here that the string `bnli...P84/` is XOR encrypted & Base64 encoded. Let's recreate this in CyberChef.
