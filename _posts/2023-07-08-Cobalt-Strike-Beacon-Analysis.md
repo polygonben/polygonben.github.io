@@ -30,7 +30,7 @@ IEX (New-Object IO.StreamReader(New-Object IO.Compression.GzipStream($s,[IO.Comp
 
 This Gzip decompresses the variable `s`, and inputs into the StreamReader object. The contents of the StreamReader object are then passed as input into the IEX function, Invoke-Expression, which executes a given PowerShell command or script. From this, we can take a guess that `s` is gzip compressed, PowerShell code? Let's recreate this process of Base64 decoding & Gzip decompressing in CyberChef.
 
-[![2](/assets/images/CobaltStrikeBeaconAnalysis1/2.png)](/assets/images/CobaltStrikeBeaconAnalysis1/2.png){: .full}
+[![2](/assets/images/CobaltStrikeBeaconAnalysis1/2.PNG)](/assets/images/CobaltStrikeBeaconAnalysis1/2.PNG){: .full}
 
 We can see that indeed, this was more PowerShell code to be executed. Let's download this locally and analyze this script
 
@@ -123,4 +123,10 @@ Interesting, we see `beacon.x64.dll`, certaintly looks dodgy right? [Googling th
 
 To do this task, I took advanatge of [this](https://github.com/DidierStevens/DidierStevensSuite/blob/master/1768.py) great tool.
 
-[![8](/assets/images/CobaltStrikeBeaconAnalysis1/8.PNG)](/assets/images/CobaltStrikeBeaconAnalysis1/8.PNG){: .full} 
+[![8](/assets/images/CobaltStrikeBeaconAnalysis1/8.PNG)](/assets/images/CobaltStrikeBeaconAnalysis1/8.PNG){: .full}
+
+From this we can clearly see the IP address is of the C2 server is `81.70.197[.]244` over port `4433` with the HTTPS protocol. We can also see the HTTP C2 communications are sent to a URI of `/jquery-3.3.1.min.js`, in attempt to masquerade as a jsquery request.
+
+Searching this IP on VirusTotal we can see it's been flagged from 2/88 security vendors. Further basic OSINT discovers it to be hosted by the cloud provider [Tencet Cloud Computing Company Limited](https://cloud.tencent.com/)
+
+[![9](/assets/images/CobaltStrikeBeaconAnalysis1/9.png)](/assets/images/CobaltStrikeBeaconAnalysis1/9.png){: .full}
