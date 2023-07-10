@@ -76,3 +76,5 @@ If ([IntPtr]::size -eq 8) {
 }
 
 ```
+
+The first defined function, `func_get_proc_address()`, basically retrieves the memory address of a specified procedure/function from a specified DLL. We can see this is used here, `$var_var = ... func_get_proc_address kernel32.dll VirtualAlloc), (...`. VirtualAlloc is a function of the Win32 API used to allocate a certain region of memory, of the calling process. We can see on the next line the parameters of this function, `$var_va.Invoke([IntPtr]::Zero, $var_code.Length, 0x3000, 0x40)`. Referencing the documentation on the VirtualAlloc function reveals 

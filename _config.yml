@@ -58,7 +58,7 @@ plugins:
 author:
   name   : "Ben Folland"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "CTF n00b & Security researcher"
+  bio    : "CTF player & Security researcher"
   links:
     - label: "Twitter"
       icon: "fab fa-fw fa-twitter-square"
