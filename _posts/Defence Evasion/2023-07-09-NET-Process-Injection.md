@@ -2,6 +2,7 @@
 title: "Unmasking Defence Evasion: .NET process injection"
 categories:
   - Defence Evasion
+toc: true
 ---
 
 Over the past few days, I have been engrossed in researching various defence evasion techniques used by red team operators and APT groups. Specifically, I have been focused on finding methods to uncover the forensic artefacts left behind. This blog post will delve into the findings of my most recent endeavour: injecting processes with PowerShell and .NET assemblies to evade detection.
