@@ -28,7 +28,7 @@ The above screenshot shows ‘Process is managed (.NET)’. Let’s have a look 
 
 Before I jump into this, let’s quickly go over why we should care and how this evades defences. Code executing from unmanaged Windows processes like `svchost.exe` , `WmiPrvSE.exe` , `spoolsv.exe` , `chrome.exe` ect ect, are less likely to be alerted by AVs or even EDRs as they are seen as ‘normal’ processes that will be running in a production environment. If we can inject a CLR, and the corresponding bytecode to be executed into the memory of any one of these processes we could possibly execute commands in-their-memory, without being detected as no files were ever dropped on the system. This technique of using another process to execute .NET assemblies was given the name Bring Your Own Land (BYOL) by [Nathan Kirk from Mandiant](https://www.mandiant.com/resources/blog/bring-your-own-land-novel-red-teaming-technique)
 
-Cobalt Strike offers this post-exploitation capability with it’s `execute-assembly` feature, CLR runtime DLLs are loaded into an unmanaged processes memory along with malicious .NET assemblies to be executed. Cobalt Strike also has the `powerpick` command, this also loads a CLR into a unmanaged process and will execute a PowerShell command of the operators choice — without ever running from powershell.exe! As you will know, in Enterprise environments powershell.exe will often be restricted by application whitelisting, or monitored carefully, being able to run PowerShell commands in memory of an unmanaged process without powershell.exe ever being run becomes very powerful defence evasion mechanism.
+Cobalt Strike offers this post-exploitation capability with it’s `execute-assembly` feature, CLR runtime DLLs are loaded into an unmanaged processes memory along with malicious .NET assemblies to be executed. Cobalt Strike also has the `powerpick` command, this also loads a CLR into a unmanaged process and will execute a PowerShell command of the operators choice — without ever running from `powershell.exe`! As you will know, in Enterprise environments `powershell.exe` will often be restricted by application whitelisting, or monitored carefully, being able to run PowerShell commands in memory of an unmanaged process without `powershell.exe` ever being run becomes very powerful defence evasion mechanism.
 
 Although I will not be demonstrating and analysing this Cobalt Strike command, the same DLLs will be loaded with both the `execute-assembly` and `powerpick` commands. Instead I will be using [EmpireProject’s PSInject](https://github.com/EmpireProject/PSInject) to inject PowerShell into an unmanaged process memory.
 
@@ -48,3 +48,10 @@ After waiting a few seconds we can notice below that svchost.exe has changed col
 
 [![7](/assets/images/NETProcessInjection/7.png)](/assets/images/NETProcessInjection/7.png){: .full}
 
+Let’s dig deeper to confirm the DLL loaded into the memory of this process are as expected.
+
+[![8](/assets/images/NETProcessInjection/8.png)](/assets/images/NETProcessInjection/8.png){: .full}
+
+Nice, we have confirmation that the .NET CLR has been loaded into svchost.exe memory!
+
+You will have noticed that yes I did use `powershell.exe` to inject the process with PowerShell in the first place (although the PowerShell is executing from svchost.exe, not `powershell.exe`), which would no-doubt flag detection and be logged, however with Cobalt Strike’s `execute-assembly` or `powerpick` , this would not be the case. Let’s assume I used the latter and I’ll now continue to search for forensic artefacts with sysmon logs, chainsaw & some custom Sigma rules I created!
