@@ -1,9 +1,11 @@
 ---
-title: "Try Hack Me: Chill Hack - Detailed Writeup"
+title: "TryHackMe: Chill Hack - Detailed Writeup"
 categories:
   - CTF Writeups
 toc: true
 ---
+
+This was an 'easy' rated TryHackMe Linux box. I can't lie this didn't seem 'easy' to me, however, enjoy the ride!
 
 ## Reconnaissance
 ### Nmap
@@ -146,7 +148,7 @@ Great! If we set our 2nd input to `id` we consquently get the output of the `id`
 
 Fantastic! This worked and we were able to recover the User flag which is stored as `local.txt`.
 
-### Apaar -> Aurick 
+### Apaar -> Anurodh 
 
 First, I used the command `python3 -c "import pty;pty.spawn('/bin/bash')"` to convert this ugly shell into a tty shell!
 
@@ -201,3 +203,35 @@ I first used `strings` & `exiftool` to see if any metadata or strings were left 
 So... a `backup.zip` is hidden inside this photo. Attempting to unzip it reveals it's password protected, let's crack this!
 
 [![30](/assets/images/ChillHack/30.png)](/assets/images/ChillHack/30.png){: .full}
+
+Now we can unzip this file and view the contents of `source_code.php`. 
+
+[![31](/assets/images/ChillHack/30-1.png)](/assets/images/ChillHack/30-1.png){: .full}
+
+There is Base64 encoded password here, for what looks like `Anurodh`, lets view what the plaintext is.
+
+[![32](/assets/images/ChillHack/31.png)](/assets/images/ChillHack/31.png){: .full}
+
+Awesome, will this work on our shell?
+
+[![33](/assets/images/ChillHack/32.png)](/assets/images/ChillHack/32.png){: .full}
+
+Great, we're now in a shell as the `anurodh` user.
+
+### Anurodh -> Root
+
+#### Abusing the docker group
+
+Doing some basic enumeration of the `anurodh` with the `id` command reveals we're part of the `999 (docker)` group.
+
+[![34](/assets/images/ChillHack/34.png)](/assets/images/ChillHack/34.png){: .full}
+
+While researching this group I discovered the [following](https://keiran.scot/2020/07/05/privilege-escalation-with-docker/) article. He mentioned running the command, 
+
+```
+docker run -it -v /:/mnt alpine chroot /mnt sh
+```
+
+will allow the user to mount the full file system, then use `chroot` to gain full privileges. Doing this allowed me to PE to root and get the final flag :)
+
+[![35](/assets/images/ChillHack/35.png)](/assets/images/ChillHack/35.png){: .full}
