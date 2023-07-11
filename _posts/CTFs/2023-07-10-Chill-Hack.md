@@ -164,6 +164,36 @@ The file which really stood out to me at first glance was `index.php` which cont
 
 [![22](/assets/images/ChillHack/22.png)](/assets/images/ChillHack/22.png){: .full}
 
+##### MySQL database dumping
+
 The line highlighted in red looks like a connection via MySQL to the `webportal` database on localhost. Let's see if we can use these credentials to connect and extract the data via the shell.
 
 [![23](/assets/images/ChillHack/23.png)](/assets/images/ChillHack/23.png){: .full}
+
+[![24](/assets/images/ChillHack/24.png)](/assets/images/ChillHack/24.png){: .full}
+
+Cool, we've got two hashes now for usernames `aurick` and `cullapaar`! Let's see if we can crack them :)
+
+##### Hash Cracking
+
+[![25](/assets/images/ChillHack/25.png)](/assets/images/ChillHack/25.png){: .full}
+
+[![26](/assets/images/ChillHack/26.png)](/assets/images/ChillHack/26.png){: .full}
+
+Nice, we've succesfully uncovered two passwords. But can we use them anywhere? No, unfortunately not :( I tried both these passwords for users: `aurick`, `anurodh` and `root` - none worked. Back to further enum!
+
+#### Stego
+
+After looking through contents of further files I saw this note on `hacker.php`
+
+[![27](/assets/images/ChillHack/26-1.png)](/assets/images/ChillHack/26-1.png){: .full}
+
+`Look in the dark! You will find your answer`, Hmmmm... this gave me the hint to consider steganography on the two files in the `/images` directory. 
+
+[![28](/assets/images/ChillHack/26-2.png)](/assets/images/ChillHack/26-2.png){: .full}
+
+I transferred said files by doing `cat hacker-...41.jpg | base64` and manually copying them over to my Kali machine. On my Kali machine I converted them back into real images with `echo "AADF...base64_here...adsf= | base64 --decode > file.jpg`
+
+I first used `strings` & `exiftool` to see if any metadata or strings were left behind, they weren't. Then, I tried `steghide` with an empty password!
+
+[![29](/assets/images/ChillHack/29.png)](/assets/images/ChillHack/29.png){: .full}
