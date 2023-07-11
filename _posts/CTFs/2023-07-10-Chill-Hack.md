@@ -1,5 +1,5 @@
 ---
-title: "Try Hack Me: Chill Hack - detailed writeup"
+title: "Try Hack Me: Chill Hack - Detailed Writeup"
 categories:
   - CTF Writeups
 toc: true
@@ -78,4 +78,52 @@ I'll be using the `ffuf` tool with SecLists wordlist `directory-list-2.3-small.t
 
 The output of `ffuf_dir_small.log` was messy so I used a combination of `grep` and `cut` to parse & clean the output into a semi-nice output of valid directories. The one that stands out me is `/secret`. Let's check it out!
 
+Visiting this endpoint I was prompted with a **Command** text input box with a button **Execute**. Perhaps this is a web-interface to execute remote commands on the computer?
+
+[![8](/assets/images/ChillHack/8.png)](/assets/images/ChillHack/8.png){: .full}
+
 ## Initial Foothold
+
+After playing around for a while I figured their was filtering on certain commands that could be ran. If the input contained strings like `nc`, `php`, or `python` (and probably more) - the program wouldn't execute.
+
+[![9](/assets/images/ChillHack/9.png)](/assets/images/ChillHack/9.png){: .full}
+
+However, there was not filtering on `wget`, let's see if I can download files onto the box.
+
+[![10](/assets/images/ChillHack/10.png)](/assets/images/ChillHack/10.png){: .full}
+
+[![11](/assets/images/ChillHack/11.png)](/assets/images/ChillHack/11.png){: .full}
+
+Okay, that command ran and we got a request from my python HTTP server. Let's verify if this succesfully downloaded into the `/tmp` directory.
+
+[![12](/assets/images/ChillHack/12.png)](/assets/images/ChillHack/12.png){: .full}
+
+Great! It worked. We should be able to upload a reverse-shell and execute it now!
+
+### Crafting payload
+
+Although, at this point, there is lots of freedom of how to gain a reverse-shell, I went with the classic. 
+
+[![13](/assets/images/ChillHack/13.png)](/assets/images/ChillHack/13.png){: .full}
+
+### Downloading payload
+
+Let's download this onto the box.
+
+[![14](/assets/images/ChillHack/14.png)](/assets/images/ChillHack/14.png){: .full}
+
+### Executing payload
+
+I tried to make the `revshell.sh` executable with `chmod`, however, for some reason - this didn't work. Instead I restored to the below for execution.
+
+[![15](/assets/images/ChillHack/15.png)](/assets/images/ChillHack/15.png){: .full}
+
+Going back to the the reverse-shell listener I can see I now have an initial foothold as `www-data` :) 
+
+[![16](/assets/images/ChillHack/16.png)](/assets/images/ChillHack/16.png){: .full}
+
+## Privilege Escalation
+
+I started off by viewing the sudo capabilities I have as the `www-data` with the `sudo -l` command.
+
+[![17](/assets/images/ChillHack/17.png)](/assets/images/ChillHack/17.png){: .full}
