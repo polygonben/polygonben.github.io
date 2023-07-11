@@ -45,7 +45,7 @@ Using our previous found knowledge we can logon view the file, `note.txt`, hoste
 
 After downloading the file locally with `get note.txt` we can view it's contents with `cat note.txt`.
 
-[![3](/assets/images/ChillHack/3.png)](/assets/images/ChillHack/3.png){: .full}
+[![3](/assets/images/ChillHack/3.PNG)](/assets/images/ChillHack/3.PNG){: .full}
 
 Interesting, I'm guessing this information will become useful later on in the challenge.
 
