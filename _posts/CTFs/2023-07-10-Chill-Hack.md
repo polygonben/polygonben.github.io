@@ -1,12 +1,11 @@
 ---
-title: "Try Hack Me: Chill Hack, detailed writeup"
+title: "Try Hack Me: Chill Hack - detailed writeup"
 categories:
   - CTF Writeups
 toc: true
 ---
 
 ## Reconnaissance
-
 ### Nmap
 
 I always start my challenges with a thorough nmap scanning covering all of the ports. So let's begin with that :)
@@ -52,3 +51,31 @@ Interesting, I'm guessing this information will become useful later on in the ch
 Let's move onto to enumerating the web service.
 
 ### HTTP 
+
+At first glance of the webpage it looks like sport blog.
+
+[![5](/assets/images/ChillHack/5.png)](/assets/images/ChillHack/5.png){: .full}
+
+
+#### Web technologies
+Let's begin with some basic technology enumeration to view the web-stack with the `whatweb` command.
+
+[![4](/assets/images/ChillHack/4.png)](/assets/images/ChillHack/4.png){: .full}
+
+Nothing too interesting here, we just have confirmation that this is running on a `Apache 2.4.29` webserver with `JQuery 1.1.1`. 
+
+I always check `robots.txt` to see if the developer is trying to hide any webpages from a browser, in this case we get a 404 response code when looking for this. Let's continue our web recon by fuzzing for hidden pages and directories. 
+
+#### Fuzzing
+
+[![6](/assets/images/ChillHack/6.png)](/assets/images/ChillHack/6.png){: .full}
+
+I'll be using the `ffuf` tool with SecLists wordlist `directory-list-2.3-small.txt` to search for directories. I'm using the switch `-fc 404` to not return any directories which return HTTP response code `404`.
+
+##### Fuzzing results
+
+[![7](/assets/images/ChillHack/7.png)](/assets/images/ChillHack/7.png){: .full}
+
+The output of `ffuf_dir_small.log` was messy so I used a combination of `grep` and `cut` to parse & clean the output into a semi-nice output of valid directories. The one that stands out me is `/secret`. Let's check it out!
+
+## Initial Foothold
