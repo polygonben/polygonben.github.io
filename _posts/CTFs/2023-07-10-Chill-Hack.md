@@ -124,6 +124,46 @@ Going back to the the reverse-shell listener I can see I now have an initial foo
 
 ## Privilege Escalation
 
+### www-data -> Apaar
+
+#### sudo -l 
+
 I started off by viewing the sudo capabilities I have as the `www-data` with the `sudo -l` command.
 
 [![17](/assets/images/ChillHack/17.png)](/assets/images/ChillHack/17.png){: .full}
+
+Interesting, I can execute this `/home/apaar/.helpline.sh` script as the `apaar` user. Let's inspect this script!
+
+[![18](/assets/images/ChillHack/18.png)](/assets/images/ChillHack/18.png){: .full}
+
+The line `$msg 2>/dev/null` stood out to me. The `$msg` variable was set as user input on line `read -p "Hello... " msg`, meaning that our 2nd user input will be executed. Let's test this out.
+
+[![19](/assets/images/ChillHack/19.png)](/assets/images/ChillHack/19.png){: .full}
+
+Great! If we set our 2nd input to `id` we consquently get the output of the `id` command as the user `apaar`. Let's now input `/bin/bash` to get a shell as `apaar`.
+
+[![20](/assets/images/ChillHack/20.png)](/assets/images/ChillHack/20.png){: .full}
+
+Fantastic! This worked and we were able to recover the User flag which is stored as `local.txt`.
+
+### Apaar -> Aurick 
+
+First, I used the command `python3 -c "import pty;pty.spawn('/bin/bash')"` to convert this ugly shell into a tty shell!
+
+[![21](/assets/images/ChillHack/21.png)](/assets/images/ChillHack/21.png){: .full}
+
+#### Further enum
+
+After looking around for a while I discovered `/var/www/files`, interesting?
+
+These contained the following files:
+
+[![21](/assets/images/ChillHack/21-1.png)](/assets/images/ChillHack/21-1.png){: .full}
+
+The file which really stood out to me at first glance was `index.php` which contained the below lines of code:
+
+[![22](/assets/images/ChillHack/22.png)](/assets/images/ChillHack/22.png){: .full}
+
+The line highlighted in red looks like a connection via MySQL to the `webportal` database on localhost. Let's see if we can use these credentials to connect and extract the data via the shell.
+
+[![23](/assets/images/ChillHack/23.png)](/assets/images/ChillHack/23.png){: .full}
