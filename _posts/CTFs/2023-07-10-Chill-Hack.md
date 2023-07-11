@@ -192,8 +192,12 @@ After looking through contents of further files I saw this note on `hacker.php`
 
 [![28](/assets/images/ChillHack/26-2.png)](/assets/images/ChillHack/26-2.png){: .full}
 
-I transferred said files by doing `cat hacker-...41.jpg | base64` and manually copying them over to my Kali machine. On my Kali machine I converted them back into real images with `echo "AADF...base64_here...adsf= | base64 --decode > file.jpg`
+I transferred said files by doing `cat hacker-...41.jpg | base64` and manually copying them over to my Kali machine. On my Kali machine I converted them back into real images with `echo "AADF...base64_here...adsf= | base64 --decode > photo1.jpg`
 
 I first used `strings` & `exiftool` to see if any metadata or strings were left behind, they weren't. Then, I tried `steghide` with an empty password!
 
 [![29](/assets/images/ChillHack/29.png)](/assets/images/ChillHack/29.png){: .full}
+
+So... a `backup.zip` is hidden inside this photo. Attempting to unzip it reveals it's password protected, let's crack this!
+
+[![30](/assets/images/ChillHack/30.png)](/assets/images/ChillHack/30.png){: .full}
