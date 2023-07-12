@@ -116,7 +116,7 @@ Let's download this onto the box.
 
 ### Executing payload
 
-I tried to make the `revshell.sh` executable with `chmod`, however, for some reason - this didn't work. Instead I restored to the below for execution.
+I tried to make the `revshell.sh` executable with `chmod`, however, for some reason - this didn't work. Instead I resorted to the below for execution.
 
 [![15](/assets/images/ChillHack/15.png)](/assets/images/ChillHack/15.png){: .full}
 
@@ -194,7 +194,7 @@ After looking through contents of further files I saw this note on `hacker.php`
 
 [![28](/assets/images/ChillHack/26-2.png)](/assets/images/ChillHack/26-2.png){: .full}
 
-I transferred said files by doing `cat hacker-...41.jpg | base64` and manually copying them over to my Kali machine. On my Kali machine I converted them back into real images with `echo "AADF...base64_here...adsf= | base64 --decode > photo1.jpg`
+I transferred said files by doing `cat hacker-...41.jpg | base64` and manually copying the base64 string over to my Kali machine. On my Kali machine I converted them back into real images with `echo "AADF...base64_here...adsf= | base64 --decode > photo1.jpg`
 
 I first used `strings` & `exiftool` to see if any metadata or strings were left behind, they weren't. Then, I tried `steghide` with an empty password!
 
