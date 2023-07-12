@@ -222,7 +222,7 @@ Great, we're now in a shell as the `anurodh` user.
 
 #### Abusing the docker group
 
-Doing some basic enumeration of the `anurodh` with the `id` command reveals we're part of the `999 (docker)` group.
+Doing some basic enumeration of the `anurodh` user with the `id` command reveals we're part of the `999 (docker)` group.
 
 [![34](/assets/images/ChillHack/34.png)](/assets/images/ChillHack/34.png){: .full}
 
