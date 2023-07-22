@@ -9,7 +9,7 @@ Steganography, the art of concealing information within another photograph, vide
 
 # LSB Stego
 
-Although there is many individual technqiues for concealing information, I choose Least Significant Bit (LSB) steganography to conceal the text from within an image. 
+Although there are many individual technqiues to conceal data from within other digital formats, I choose Least Significant Bit (LSB) steganography to conceal the text, although in my case plaintext shellcode, from within an image. 
 
 As you will all know, digital images are just a collection of a large number of pixels. The colour of each individual pixels is represented as a combination of different strengths of Red, Green and Blue (RGB) colours. The strength of each of the Red, Green & Blue colours is decided by a number between 0 - 255, with 255 being the strongest. In computers, these numbers are represented as 8-digit binary number.
 
@@ -87,5 +87,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 * This function takes three parameters: `image_path` (the path to the input image), `plaintext_data` (the plaintext message to be hidden), and `output_path` (the path where the encoded image will be saved).
 
-* The next line opens the input image using the [PIL library](https://pypi.org/project/Pillow/) 
+* The next two lines opens the input image using the [PIL library](https://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
+
+* 
 
