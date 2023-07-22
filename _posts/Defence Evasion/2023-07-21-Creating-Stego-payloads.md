@@ -24,8 +24,64 @@ Now let's see the impact on the colour if we change the LSB on each of the colou
 
 [![3](/assets/images/PyStegMalz/3.png)](/assets/images/PyStegMalz/3.png){: .full}
 
-We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required.   
+We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required. This will have a barely noticeable affect on the image, although it will secretly contain a message. An astute reader may have noticed that the length of the binary plaintext encoded using LSB must be <= width (in pixels) * height (in pixels) * 3, otherwise there would simply not enough space to encode it. For this reason, it is good practice to choose an image which has fairly large dimensions.
 
 
+## Python implementation   
 
+Before getting into the encoding & execution of our payloads through steganography, let's quickly go over how to encode a plaintext message.
 
+### Encoding
+
+```python 
+def text_to_binary(text_data):
+    # Convert text data to binary format
+    return ''.join(format(ord(char), '08b') for char in text_data)
+
+def encode_lsb(image_path, plaintext_data, output_path):
+    image = Image.open(image_path)
+    
+    # Convert the image to RGB mode (if it's not already)
+    image = image.convert("RGB")
+
+    width, height = image.size
+    max_data_length = (width * height) * 3  # 3 channels (RGB) per pixel
+
+    # Convert plaintext to binary format
+    binary_data = text_to_binary(plaintext_data)
+
+    # Append a special character to mark the end of the data
+    binary_data += "00000000"  # Null character '\0'
+
+    # Check if the data can fit into the image
+    data_length = len(binary_data)
+    if data_length > max_data_length:
+        raise ValueError("Data too large for the image.")
+
+    # Copy image
+    encoded_image = image.copy()
+    binary_index = 0
+
+    # Embed binary data into the image using LSB steganography
+    for y in range(height):
+        for x in range(width):
+            pixel = list(image.getpixel((x, y)))
+            for channel in range(3):  # 3 channels (RGB)
+                if binary_index < len(binary_data):
+                    # Modify the least significant bit of the pixel
+                    pixel[channel] = pixel[channel] & ~1 | int(binary_data[binary_index])
+                    binary_index += 1
+                else:
+                    break
+            encoded_image.putpixel((x, y), tuple(pixel))
+
+    # Output
+    encoded_image.save(output_path)
+    print("Payload encoded and image saved successfully.")
+```
+
+#### encode_lsb()
+
+* This function takes three parameters: image_path (the path to the input image), plaintext_data (the plaintext message to be hidden), and output_path (the path where the encoded image will be saved).
+
+ 
