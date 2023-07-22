@@ -34,6 +34,9 @@ Before getting into the encoding & execution of our payloads through steganograp
 ### Encoding
 
 ```python 
+from PIL import Image
+import numpy as np
+
 def text_to_binary(text_data):
     # Convert text data to binary format
     return ''.join(format(ord(char), '08b') for char in text_data)
@@ -82,6 +85,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 #### encode_lsb()
 
-* This function takes three parameters: image_path (the path to the input image), plaintext_data (the plaintext message to be hidden), and output_path (the path where the encoded image will be saved).
+* This function takes three parameters: `image_path` (the path to the input image), `plaintext_data` (the plaintext message to be hidden), and `output_path` (the path where the encoded image will be saved).
 
- 
+* The next line opens the input image using the [PIL library](https://pypi.org/project/Pillow/)
+
