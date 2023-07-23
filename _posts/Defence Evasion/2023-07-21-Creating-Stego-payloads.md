@@ -345,5 +345,16 @@ thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
                                      ctypes.pointer(ctypes.c_int(0)))
 ```
 
-`CreateThread` - This is used to create a thread that runs from the virtual address space of the calling process.
+`CreateThread` - This is used to create a thread that runs from the virtual address space of the calling process. In our situation, this is used to actually execute the shellcode.
 
+* lpThreadAttributes - This determines whether the handle can be inherited by a child process. In this case we have set this value to `NULL`, meaning it cannot.
+
+* dwStackSize - The initial size of the stack. If, like in our case, it's set to `NULL`, it will default to 1MB.
+
+* lpStartAddress - The pointer to the memory address of thread. In our case, it's set to the `pointer` variable, defined when we allocated the virual address space with `VirtualAlloc`.
+
+* lpParameter - A pointer to a variable to be passed to the thread. This is an optional parameter, so supplying a value of `NULL`, will not make a difference.
+
+* dwCreationFlags - These flags control the creation of the process. In our case it is set to 0, meaning the thread will run immediately.
+
+* lpThreadId - A pointer to a variable that receives the thread identifier. If, like in our case, it's set to `NULL`, no identifier is returned.   
