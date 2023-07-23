@@ -344,3 +344,6 @@ thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
                                      ctypes.c_int(0),
                                      ctypes.pointer(ctypes.c_int(0)))
 ```
+
+`CreateThread` - This is used to create a thread that runs from the virtual address space of the calling process.
+
