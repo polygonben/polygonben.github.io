@@ -89,5 +89,33 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 * The next two lines opens the input image using the [PIL library](https://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
 
-* 
+* Following this, we use the `text_to_binary()` function to convert our plaintext message, `plaintext_data`, and store it under the `binary_data`. The next line appends the binary `00000000` to our data, this will be used to mark the end of the data in our decoding process.
+
+* The lines after this perform the aforementioned checks that the plaintext that we'll be encoding will actually fit & then take a copy of the image and store it under the `encoded_image` variable.
+
+* We then use a `binary_index`, to ensure the following nested for-loop stops once all data has been encoded. The aforementioned nested for-loop goes through pixel locations (x,y) until `binary_index < len(binary_data)`
+```
+(0,0) , (0,1) , (0,2) , ... , (0,x-1)
+
+(1,0)   (1,1)    
+
+(2,0)        ...
+
+...
+
+(y-1,0)
+```
+  * The first 3rd in the for-loop,  `pixel = list(image.getpixel((x, y)))`, gets the RGB numbers for pixel in coordinate (x,y). For example, if the pixel at (0,0) is white, the output would be `[255,255,255]`.
+  
+  * We then loop through each of the 3 channels (RGB). And for each of these we do the following:
+
+    * `pixel[channel] & ~1` : Uses some bitwise operations to set the LSB bit to 0
+
+    * `int(binary_data[binary_index])` : Uses the `binary_index` counter to the character from our `binary_data` string that we want to encode
+
+    * `pixel[channel] & ~1 | int(binary_data[binary_index])` : Uses the bitwise OR, `|` operation to set the LSB to the value of `int(binary_data[binary_index])`
+
+    * The `encoded_image.putpixel((x, y), tuple(pixel))` is used to save that choosen pixel to our `encoded_image` Image object
+
+  * This for-loop continues doing this for each pixel until all the `binary_data` has been encoded.
 
