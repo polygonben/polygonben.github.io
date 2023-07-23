@@ -5,7 +5,7 @@ categories:
 toc: true
 ---
 
-Steganography, the art of concealing information within another photograph, video, or even a physical object, has always intrigued me. As someone deeply passionate about unique and creative defense evasion techniques, an idea sparked in my mind: Could I hide shellcode within a seemingly benign image, and then use an external script to read & execute the payload? This blog post embarks on a thrilling journey detailing the steps I took to create a POC for this very purpose.
+Steganography, the art of concealing information within another photograph, video, or even a physical object, has always intrigued me. As someone deeply passionate about unique and creative defence evasion techniques, an idea sparked in my mind: Could I hide shellcode within a seemingly benign image, and then use an external script to read & execute the payload? This blog post embarks on a thrilling journey detailing the steps I took to create a POC for this very purpose.
 
 # LSB Stego
 
@@ -107,7 +107,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 (y-1,0)
 ```
 
-  * The first 3rd in the for-loop,  `pixel = list(image.getpixel((x, y)))`, gets the RGB numbers for pixel in coordinate (x,y). For example, if the pixel at (0,0) is white, the output would be `[255,255,255]`.
+  * The 3rd line in the for-loop,  `pixel = list(image.getpixel((x, y)))`, gets the RGB numbers for pixel in coordinate (x,y). For example, if the pixel at (0,0) is white, the output would be `[255,255,255]`.
   
   * We then loop through each of the 3 channels (RGB). And for each of these we do the following:
 
@@ -121,3 +121,46 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
   * This for-loop continues doing this for each pixel until all the `binary_data` has been encoded.
 
+### Decoding
+
+```python
+from PIL import Image
+
+def binary_to_text(binary_data):
+    # Convert binary data to text format
+    return ''.join(chr(int(binary_data[i:i+8], 2)) for i in range(0, len(binary_data), 8))
+
+def decode_lsb(encoded_image_path):
+    encoded_image = Image.open(encoded_image_path)
+    
+    # Convert the image to RGB mode (if it's not already)
+    encoded_image = encoded_image.convert("RGB")
+
+    width, height = encoded_image.size
+    binary_data = ""
+
+    # Extract binary data from the least significant bits of the pixels
+    for y in range(height):
+        for x in range(width):
+            pixel = encoded_image.getpixel((x, y))
+            for channel in range(3):  # 3 channels (RGB)
+                # Extract the least significant bit and append to binary data
+                binary_data += format(pixel[channel] & 1, '01')
+
+    # Find the index of the null character '\0' to mark the end of the data
+    end_index = binary_data.find("00000000")
+    binary_data = binary_data[:end_index]
+    plaintext_data = binary_to_text(binary_data)
+```
+
+#### decode_lsb()
+
+* This function works in a similar way. We loop around all pixels in the image, and get the RGB values for each channel
+
+* A `binary_data` variable is defined as an empty string. For each of those RGB channels we use, `format(pixel[channel] & 1, '01')`, where `&` is the bitwise AND operator to choose whether the decoded binary will be a '0' or '1'. This result will be appended to the `binary_data` variable.
+
+* We then use the `binary_data.find("00000000")` to find the index of our marker for the end of data, and then chop it off, leaving us with the binary encoded plaintext.
+
+* Finally, we use the `binary_to_text()` function to convert our binary to plaintext!
+
+  
