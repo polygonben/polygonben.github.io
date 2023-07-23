@@ -27,7 +27,7 @@ Now let's see the impact on the colour if we change the LSB on each of the colou
 We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required. This will have a barely noticeable affect on the image, although it will secretly contain a message. An astute reader may have noticed that the length of the binary plaintext encoded using LSB must be <= width (in pixels) * heigthread (in pixels) * 3, otherwise there would simply not enough space to encode it. For this reason, it is good practice to choose an image which has fairly large dimensions.
 
 
-## Python implementation   
+# Python implementation   
 
 Before getting into the encoding & execution of our payloads through steganography, let's quickly go over how to encode a plaintext message in Python 2.7 using .
 
@@ -176,9 +176,9 @@ Great! Let's execute this to check this works.
 
 Fantastic! Our message was succesfully decoded. Let's implement shellcode encoding & execution.
 
-### Encoding shellcode
+# Encoding shellcode
 
-#### Generating calc.exe shellcode for our POC
+### Generating calc.exe shellcode for our POC
 
 To generate the shellcode I will use msfvenom:
 
@@ -186,15 +186,15 @@ To generate the shellcode I will use msfvenom:
 
 This command uses `-p windows/exec CMD="calc.exe"` to pop calc.exe, with the  `-e x86/shikata_ga_nai -i 5` to use 5 iterations of the `shikata_ga_nai` encoder. Shikata Ga Nai is an polymorphic XOR additive feedback encoder. You don't really know how it works, but you should always encode your shellcode with at least a couple iterations to ensure the blue-team will struggle when attempting to reverse engineer it! If you'd like to learn how the algorithm works and where it's used by many APT groups check [this](threadtps://www.mandiant.com/resources/blog/shikata-ga-nai-encoder-still-going-strong) Mandiant article out!
 
-#### Implementing encoding the shellcode.
+### Implementing encoding the shellcode.
 
-##### shellcode.txt
+#### shellcode.txt
 
 Let's copy the payload straigthread from msvenom and paste into our `shellcode.txt` file. 
 
 [![7](/assets/images/PyStegMalz/7.png)](/assets/images/PyStegMalz/7.png){: .align-center}
 
-##### encoder.py
+#### encoder.py
 
 ```python
 #!/usr/bin/python
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 We've implemented two new lines, one to read the contents of the `shellcode.txt` file and the 2nd parse & clean it for encoding.
 
 
-### Decoding & Executing the shellcode
+## Decoding & Executing the shellcode
 
 ```python
 #!/usr/bin/python
@@ -278,7 +278,7 @@ shellcode_exec(shellcode)
 
 ```
 
-#### Decoding
+### Decoding
 
 We've added a handful of extra lines to ensure the shellcode text, which we've encoded, is in a correct format to be executed. For some unkown reason, the last double-quote in our `shellcode.txt` was always corrupted to be another symbol. To fix this, I've added the check:
 
@@ -294,7 +294,7 @@ The lines which follow set the variable `hex_array = plaintext_data.split('"')` 
 
 If we skip over the `shellcode_exec()` function for now, the final parsing we do to turn this string of hex characters into actual hex, which can be executed, is: `binascii.unhexlify(shellcode_str.decode().replace('\\x', ''))` 
 
-#### Executing
+### Executing
 
 To actually execute the said hex, which was encoded as a string in our image, in python, we'll use the `ctypes` library. `ctypes` allows us to directly interface with Windows API functions. Let's break down tis function and the Win32 APIs used to execute the shellcode line by line!
 
@@ -371,12 +371,8 @@ ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
 
 * dwMilliseconds - Time-out interval set in miliseconds. In our case, it will wait indefinitely untill the object is in a signaled state or an error occurs.
 
-### POC live demo
+# POC live demo
 
 If you've read this far well-done. Time to demonstrate the POC.
 
-
-
-<div id="html" markdown="0">
-    <video src=/assets/images/PyStegMalz/8.mp4></video>
-</div>
+{% video assets/images/PyStegMalz/8.webm %}
