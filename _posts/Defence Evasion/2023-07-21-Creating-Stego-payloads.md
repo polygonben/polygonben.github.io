@@ -375,4 +375,10 @@ ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
 
 If you've read this far well-done. Time to demonstrate the POC.
 
-{% video assets/images/PyStegMalz/8.webm %}
+<video width="480" height="320" controls="controls">
+  <source src="/assets/images/PyStegMalz/8.webm" type="video/webm">
+</video>
+
+[![7](/assets/images/PyStegMalz/8.webm)](/assets/images/PyStegMalz/8.webm){: .align-center}
+
+
