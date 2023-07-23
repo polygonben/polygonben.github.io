@@ -192,7 +192,7 @@ This command uses `-p windows/exec CMD="calc.exe"` to pop calc.exe, with the  `-
 
 Let's copy the payload straigthread from msvenom and paste into our `shellcode.txt` file. 
 
-[![5](/assets/images/PyStegMalz/5.png)](/assets/images/PyStegMalz/5.png){: .align-center}
+[![7](/assets/images/PyStegMalz/7.png)](/assets/images/PyStegMalz/7.png){: .align-center}
 
 ##### encoder.py
 
@@ -268,7 +268,8 @@ def shellcode_exec(shellcode_raw):
                                          ctypes.c_int(0),
                                          ctypes.pointer(ctypes.c_int(0)))
  
-    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),ctypes.c_int(-1))
+    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
+                                         ctypes.c_int(-1))
 
 encoded_image_path = "poc_example.png"
 shellcode_str = decode_lsb(encoded_image_path)
@@ -345,7 +346,7 @@ thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
                                      ctypes.pointer(ctypes.c_int(0)))
 ```
 
-`CreateThread` - This is used to create a thread that runs from the virtual address space of the calling process. In our situation, this is used to actually execute the shellcode.
+`CreateThread` - This is used to create a thread that runs from the virtual address space of the calling process. In our situation, this is used to actually execute the shellcode. Referencing the [MSDN](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread) documentation we can see it takes the below parameters:
 
 * lpThreadAttributes - This determines whether the handle can be inherited by a child process. In this case we have set this value to `NULL`, meaning it cannot.
 
@@ -358,3 +359,20 @@ thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
 * dwCreationFlags - These flags control the creation of the process. In our case it is set to 0, meaning the thread will run immediately.
 
 * lpThreadId - A pointer to a variable that receives the thread identifier. If, like in our case, it's set to `NULL`, no identifier is returned.   
+
+```python
+ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
+                                        ctypes.c_int(-1))
+```
+
+`WaitForSingleObject` - Waits until a specified object is in the signaled state, or if the time-out interval elapses.
+
+* hHandle - The handle to the object. In our case, this is defined as the handle of the thread, set as `thread`.
+
+* dwMilliseconds - Time-out interval set in miliseconds. In our case, it will wait indefinitely untill the object is in a signaled state or an error occurs.
+
+### POC live demo
+
+If you've read this far well-done. Time to demonstrate the POC.
+
+[![8](/assets/images/PyStegMalz/8.mp4)](/assets/images/PyStegMalz/8.mp4){: .align-center}
