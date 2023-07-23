@@ -94,6 +94,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 * The lines after this perform the aforementioned checks that the plaintext that we'll be encoding will actually fit & then take a copy of the image and store it under the `encoded_image` variable.
 
 * We then use a `binary_index`, to ensure the following nested for-loop stops once all data has been encoded. The aforementioned nested for-loop goes through pixel locations (x,y) until `binary_index < len(binary_data)`
+
 ```
 (0,0) , (0,1) , (0,2) , ... , (0,x-1)
 
@@ -105,6 +106,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 (y-1,0)
 ```
+
   * The first 3rd in the for-loop,  `pixel = list(image.getpixel((x, y)))`, gets the RGB numbers for pixel in coordinate (x,y). For example, if the pixel at (0,0) is white, the output would be `[255,255,255]`.
   
   * We then loop through each of the 3 channels (RGB). And for each of these we do the following:
