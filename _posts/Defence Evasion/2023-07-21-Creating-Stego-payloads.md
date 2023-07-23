@@ -381,5 +381,21 @@ If you've read this far well-done. Time to demonstrate the POC.
 </video>
 </center>
 
+If you want to try this out in your own enviroment, you can get all the code hosted on my Github [here]()! 
 
+### Reflection & future changes
+
+I want to make it clear that this POC didn't have defence evasion as the main goal. This was more of an experiment to test if it would be possible to execute payloads hosted from an image. This is going to be a continous project of mine, I plan to use further evasion technqiues to heavily obfsucate the script and also use undocumented Windows API functions to deal with the execution of shellcode. 
+
+I'm also planning to create shellcode runners using the following languages:
+
+* JScript
+
+* PowerShell
+
+* C#
+
+This will make execution more accessible for red-teamers, who will most likely not have a host running Python already!
+
+  
 
