@@ -371,7 +371,7 @@ ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
 
 * dwMilliseconds - Time-out interval set in miliseconds. In our case, it will wait indefinitely untill the object is in a signaled state or an error occurs.
 
-## POC live demo
+### POC live demo
 
 If you've read this far well-done. Time to demonstrate the POC.
 
