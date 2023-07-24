@@ -35,7 +35,6 @@ Before getting into the encoding & execution of our shellcode with steganography
 
 ```python 
 from PIL import Image
-import numpy as np
 
 def text_to_binary(text_data):
     # Convert text data to binary format
