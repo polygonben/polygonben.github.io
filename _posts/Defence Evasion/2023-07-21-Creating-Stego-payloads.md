@@ -29,7 +29,7 @@ We can now see they are practically indistinguishable from each other. LSB stego
 
 # Python implementation   
 
-Before getting into the encoding & execution of our payloads through steganography, let's quickly go over how to encode a plaintext message in Python 2.7 using .
+Before getting into the encoding & execution of our shellcode with steganography, let's quickly go over how to encode a plaintext message in Python 2.7 using LSB stego.
 
 ### Encoding
 
