@@ -225,7 +225,12 @@ if __name__ == "__main__":
     eval(compiled_code)
 ```
 
-The above file, `runner.py`, is the script that would be stored on disk, alongside the malicious image, on the compromised host. Looking at the above code, and comparing it the prior version, we can observe there is no longer any natively "malicious" functions in plaintext for the AV engine to easily detect. I've renamed some variables, to make analysis harder, and performed some minor obfuscation operations at the end of the script. In order to execute this 2nd stage payload, encoded within the image, we could've just used `exec(string2ex)`. The issue with this `exec()` function, in the context of the script, is that it is commonly abused in malware execution chains. I'm still calling `exec()`, but proxying the function through the `compile()` & `eval()` functions instead, both of which are less likely to flag up than `exec()`. We can run this new update shellcode runner and see the number of detections:
-
+The above file, `runner.py`, is the script that would be stored on disk, alongside the malicious image, on the host ready to be executed. Looking at the above code, and comparing it to the prior version, we can observe there is no longer any natively "malicious" functions or strings  within plaintext for the AV engine to easily detect. I've renamed some variables, to make analysis harder, and performed some minor obfuscation operations at the end of the script. In order to execute this 2nd stage payload, encoded within the image, we could've just used `exec(string2ex)`. The issue with this `exec()` function, in the context of the script, it is commonly abused in malware execution chains. I'm still calling `exec()`, but proxying the function through the `compile()` & `eval()` functions instead, both of which are less likely to flag up than `exec()`. We can run this new update shellcode runner and see the number of detections:
 
 [![2](/assets/images/PyStegMalz2/2.PNG)](/assets/images/PyStegMalz2/2.PNG){: .align-center}
+
+Great, 0 detections! The corresponding image also had 0 detections - but this would be expected due to the nature of steganographic encoding and ability to detect it, or lack thereof. The updated code, and instructions for use, can be found on the [GitHub repo.](https://github.com/polygonben/PyStegMalz).
+
+The above updated version can successfully evade Windows Defender to execute a simple reverse-shell. Although this is possible, once again, this is just a PoC and would not be suitable for real-life red team operations. The observed activity would likely get killed by a good EDR, however if not - the surrounding process/network activity generated as a result of execution should hopefully leave the SOC a few interesting alerts to investigate!
+
+
