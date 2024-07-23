@@ -95,7 +95,7 @@ From the above we can see 3 functions:
 
 From the above, the issues are introduced in the `shellcode_exec()` function. Although no malicious shellcode is stored in a "readable" format within the Python script (i.e. it is loaded into memory upon execution, when it is decoded), the functions `VirtualAlloc`, `RtlMoveMemory`, `CreateThread` & `WaitForSingleObject` do exist in plaintext within the script, and can definitely indicate malicious activity, without the malicious shellcode existing in the first place. Anti-virus detection engines may be configured to block or quarantine certain scripts containing those above file names. We can see this is the case by uploading this old steganographic shellcode runner to VirusTotal:
 
-[![1](/assets/images/PyStegMalz/1.PNG)](/assets/images/PyStegMalz/1.PNG){: .align-center}
+[![1](/assets/images/PyStegMalz2/1.PNG)](/assets/images/PyStegMalz2/1.PNG){: .align-center}
 
 
 # Python implementation   
