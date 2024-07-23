@@ -93,9 +93,11 @@ From the above we can see 3 functions:
 
 * `shellcode_exec()` - This function uses Win32 API to load malicious shellcode into memory and execute it
 
-From the above, the issues are introduced in the `shellcode_exec()` function. Although no malicious shellcode is stored in a "readable" format within the Python script (i.e. it is loaded into memory upon execution, when it is decoded), the functions `VirtualAlloc`, `RtlMoveMemory`, `CreateThread` & `WaitForSingleObject` do exist in plaintext within the script, and can definitely indicate malicious activity, without the malicious shellcode existing in the first place. Anti-virus detection engines may be configured to block or quarantine certain scripts containing those above file names. We can see this is the case by uploading this old steganographic shellcode runner to VirusTotal:
+From the above, the issues are introduced in the `shellcode_exec()` function. Although no malicious shellcode is stored in a "readable" format within the Python script (i.e. it is loaded into memory upon execution, when it is decoded), the functions `VirtualAlloc`, `RtlMoveMemory`, `CreateThread` & `WaitForSingleObject` do exist in plaintext within the script, and this can definitely indicate malicious activity, without the malicious shellcode existing in the first place. Anti-virus detection engines may be configured to block or quarantine certain scripts containing those above function names. We can see this is the case by uploading this old steganographic shellcode runner to VirusTotal:
 
 [![1](/assets/images/PyStegMalz2/1.PNG)](/assets/images/PyStegMalz2/1.PNG){: .align-center}
+
+As we can see there has been 17/65 VirusTotal detections for this script due to existence of certain functions which can indicate malicious activity. The below updated code gets rid of this issue by steganographically encoding this `shellcode_exec()` function alongside the encoded shellcode within an image
 
 
 # Python implementation   
