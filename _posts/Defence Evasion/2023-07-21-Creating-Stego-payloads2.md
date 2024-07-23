@@ -1,11 +1,11 @@
 ---
-title: "Cloaked in Pixels: Concealing Your Payloads with Steganography"
+title: "Cloaked in Pixels: Evasion update"
 categories:
   - Defence Evasion
 toc: true
 ---
 
-Steganography, the art of concealing information within another photograph, video, or even a physical object, has always intrigued me. As someone deeply passionate about unique and creative defence evasion techniques, an idea sparked in my mind: Could I hide shellcode within a seemingly benign image, and then use an external script to read & execute the payload? This blog post embarks on a journey detailing the steps I took to create a POC for this very purpose.
+Around this time last year I released a blog post which covered an analysis of a PoC steganographic shellcode encoder and runner, which I wrote in Python. The aim of this project was to produce a set of scripts that abused least significant bit steganography to encode and run malicious payloads for evasion purposes. This script was able to do so, but had a pitfall which could easily lead to a trivial detection. This blog post follows my prior one and explains in detail how the technique works. You can find this linked [here](https://polygonben.github.io/defence%20evasion/Creating-Stego-payloads/)   
 
 # LSB Stego
 
@@ -86,7 +86,7 @@ def encode_lsb(image_path, plaintext_data, output_path):
 
 * This function takes three parameters: `image_path` (the path to the input image), `plaintext_data` (the plaintext message to be hidden), and `output_path` (the path where the encoded image will be saved).
 
-* The next two lines opens the input image using the [PIL library](https://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
+* The next two lines opens the input image using the [PIL library](threadtps://pypi.org/project/Pillow/) and converts it into RGB mode, to ensure their are 3 channels per pixel.
 
 * Following this, we use the `text_to_binary()` function to convert our plaintext message, `plaintext_data`, and store it under the `binary_data`. The next line appends the binary `00000000` to our data, this will be used to mark the end of the data in our decoding process.
 
