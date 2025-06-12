@@ -1,1 +1,266 @@
+---
+title: "Compromising Threat Actor Communications"
+categories:
+  - Malware Analysis
+toc: true
+---
+
+Traditionally, the vast majority of malware would communicate to a threat actor owned server via a threat actor owned domain or IP address. This domain or IP would likely be hardcoded within the malware sample somewhere, such that when executed, it would reach out to establish Command and Control (C2). This technique for C2 still remains prevalent, but there has been an observed shift into threat actors using trusted services, like Slack, Discord, or Telegram for these communications.
+
+Using trusted services allow malware to “hide in plain sight.” Network defenders typically whitelist or don’t scrutinize traffic to well-known platforms. By shifting C2 communications to these channels, attackers can bypass many conventional security controls and delay detection. The website [LOLC2](https://lolc2.github.io/) details a list of legitimate services that can be abused by C2. There are some noteable entries in the list, including [CounterStrike 1.6](https://github.com/eversinc33/1.6-C2) or [Lichess](https://github.com/0x-Apollyon/Malnus-Carlware). These are more niche entries, developed for fun, but services like Telegram being abused for C2 remains a prevalent threat. 
+
+This blog post highlights how we as defenders, or cyber-threat intelligence analysts, can exploit certain pitfalls in the way Telegram-based malware operates - in order to compromise C2 communications and disrupt adversaries. As a result of this research, I've discovered one particular actor who **stupidly** tested their own keylogging & infostealing malware on their own production "hacking" machine. From this, we can gain insight into this particular actors back-end infrastructure, including other cybercrime operations they are currently running. This case-study has stemmed out of my current research looking into automating malware analysis & the collection of threat intel at scale, using data from VirusTotal. 
+
+## Telegram for C2
+
+Where Telegram C2 is used, network connections to `api.telegram[.]org` are observed from the malware, rather than network connections to a malicious domain. Each strain of malware that uses Telegram for C2 may operate differently, but we can generalise the kill chain to the below steps:
+
+1. Bot Setup: The attacker registers a new bot via Telegram’s BotFather, receiving a unique token.
+
+2. Malware Deployment: The malware, embedded with the bot token and possibly a unique identifier for the infected host, is distributed to victims.
+
+3. Command Polling: Infected systems periodically make API requests to Telegram’s servers to check for new commands sent to the bot. The bot might reside in a private channel or group where only the attacker has posting rights.
+
+4. Command Execution: Upon receiving a command, the malware executes instructions on the victim machine. These could range from downloading additional payloads to exfiltrating data.
+
+5. Data Exfiltration: The malware may send results or stolen data back to the attacker via the same Telegram bot channel, completing the C2 loop. 
+
+[![1](/assets/images/CompComms/telegram.jpg)](/assets/images/CompComms/telegram.jpg){: .full}
+
+From my research, it appears the vast majority of malware samples (which use Telegram for C2), are infostealers or keyloggers - developed with the intent of stealing credentials, cookies & credit card information. Although there has been evidence that sophisticated actors, like the North Korean Lazarus Group have used [Telegram-based](https://blog.talosintelligence.com/lazarus_new_rats_dlang_and_telegram/) RATs, all the samples I've analysed can be attributed to low-tier cybercriminals or skids. 
+ 
+## The Vulnerability
+
+To highlight once again, referencing the above kill-chain, malware that uses Telegram Bots to facilicate communications or for exfiltration, must be embedded with this bot token. The creation of this bot, and the corresponding bot token, can be completed manually messaging the Telegram user @BotFather:
+
+[![2](/assets/images/CompComms/CreateBot.png)](/assets/images/CompComms/CreateBot.png){: .full}
+
+The pertinent message here is "Keep your token **secure** and **store it safely**, it can be used by anyone to control your bot". If we can manage to get our hands on an threat actors bot token, we can perform a range of actions - from forwarding all messages the bot has sent, to deleting webhooks associated with the bot. 
+
+Thankfully, it is **trivial** to get our hands on these bot tokens. I currently have 400+ actor owned bot tokens in storage, all relating to a infostealer that has been developed using modified AsyncRAT source code. The collection of these bot tokens was fully automated using VirusTotal, and I will be releasing the source code to this in due time. The case study I'll be detailing does not involve this infostealer, but a Nova sample. 
+
+With these bot tokens to hand, exploitation is also trivial. [Any.Run](https://any.run/cybersecurity-blog/intercept-stolen-data-in-telegram/) has released a [blog post](https://any.run/cybersecurity-blog/intercept-stolen-data-in-telegram/) & [set of scripts](https://github.com/anyrun/blog-scripts/tree/main/Scripts/TelegramAPI) detailing how you can delete webhooks and forward communications. The instructions of how to use these scripts will not be explained during this blog post and instead I'll be looking at one particular case study during my research. I encourage those who are interested to check out the Any.Run research for further details. 
+
+
+### Hunting for targets
+
+I mentioned it is trivial to get our hands on samples for exploitation, but how exactly can we perform this? With access to VirusTotal's [RetroHunt](https://docs.virustotal.com/docs/retrohunt) or [LiveHunt](https://docs.virustotal.com/docs/livehunt) we can develop a rule to look for potentially malicious files that communicate with `api.telegram[.]org`, the using the below YARA rule for example:
+
+```
+rule TelegramAPIMalware_PowerShell
+{
+  meta:
+    author = "@polygonben"
+    description = "Hunting for pwsh malware using Telegram for C2"
+    target_entity = "file"
+  condition:
+    vt.metadata.file_type == vt.FileType.POWERSHELL and
+    vt.metadata.analysis_stats.malicious > 5 and
+    for any http_traffic in vt.behaviour.http_conversations: (
+    http_traffic.url contains "api.telegram.org"
+)
+```
+
+This will find all Powershell scripts, that have over 5 VT detections, that have made network connections with `api.telegram[.]org`. You can hunt for various different filetypes, including Windows PEs (Executables), which return a much large number of hits. 
+
+If you don't have access to VirusTotal LiveHunt or RetroHunt, you perform OSINT to try identify samples. [MalwareBazaar](https://bazaar.abuse.ch/browse/tag/api-telegram-org/) has a smaller collection of samples that are taggged with `api-telegram-org`. Furthermore, specific Google dorks like `"api.telegram.org" site:joesandbox.com` may also assist in finding targets for exploitation. 
+
+However, the easiest method is to use VirusTotal, as this can facililate the mass collection of samples, for which the extraction of tokens can be easily automated. 
+
+## Case Study
+
+This case study will look at one particular sample that was found using the aforementioned YARA rule. The case study will be primarily focused in looking at the major mistake made by the threat actor that led to me having access to 20+ screenshots & logs of keystrokes from his host used for initiating attacks. My full malware analysis can be seen [here](https://polygonben.github.io/malware%20analysis/Nova-Analysis/)
+
+The file which was identified was [8e6thc.ps1 (466b9beeb51926c9d9ae9d538a2da037)](https://www.virustotal.com/gui/file/9ef489493d3fffa0d8e43b6a189d471430ba0fdc33def06d0e43d809413d5837/detection).
+
+[![3](/assets/images/CompComms/PS1_Detection.png)](/assets/images/CompComms/PS1_Detection.png){: .full}
+
+Looking at the VirusTotal [Relations](https://www.virustotal.com/gui/file/9ef489493d3fffa0d8e43b6a189d471430ba0fdc33def06d0e43d809413d5837/relations) or [Behavior](https://www.virustotal.com/gui/file/9ef489493d3fffa0d8e43b6a189d471430ba0fdc33def06d0e43d809413d5837/behavior) tabs, we can **instantly** get access to this Bots token & `chat_id` fields used for stealing the communications. 
+
+[![4](/assets/images/CompComms/PS1_Relations.png)](/assets/images/CompComms/PS1_Relations.png){: .full}
+
+Bot Token: `7459538222:AAGuCst3-DtyuFFYR_gchsq5lh5abp8uwcc`
+chat_id: `5943299713` 
+
+It is possible to manually extract these, rather relying on sandbox telemetry, and we will cover this in the [full malware analysis](https://polygonben.github.io/malware%20analysis/Nova-Analysis/) post.
+
+## Stealing Communications
+
+Armed with the Bot Token, we can begin *Stage 1*. To make life easier, we can use Any.Run's [prepare_bot.py](https://github.com/anyrun/blog-scripts/blob/main/Scripts/TelegramAPI/prepare_bot.py) script, although it is just as possible to do this via using `curl`. We will pass the bot token as the command-line argument and the script will perform the API request `https://api.telegram.org/bot{token}/getMe` to get whether we have permissions to add this bot to a group. If we do have these permissions, we'll then grab the bots username & add it to our own group. 
+
+* Run script with Bot Token in command-line
+
+[![5](/assets/images/CompComms/PrepareBot.PNG)](/assets/images/CompComms/PrepareBot.PNG){: .full}
+
+We can see this particular Bot has the username of "Enmmp_bot". At this point, we'll add the bot to our own group, to gather the `chat_id` of our Telegram group. Having our own chat_id will allow us to forward messages from the original chat (`5943299713`) to our own. 
+
+* Add Bot to our group
+
+[![6](/assets/images/CompComms/BotAdd.PNG)](/assets/images/CompComms/BotAdd.PNG){: .full}
+
+After adding the Bot to our own group, we'll be given a destination chat ID, that can be used to bruteforce the forwarding of messages by guessing the Message IDs.
+
+* Foward stolen communications
+
+We can now use Any.Run's [forward_messages.py](https://github.com/anyrun/blog-scripts/blob/main/Scripts/TelegramAPI/forward_messages.py) script to forward across these juicy comms. This takes 3 command-line parameters: the bot token (from the malware), the original chat_id (from the malware), and destionation chat_id (your own group chat_id, from the prepare_bot.py script)
+
+[![7](/assets/images/CompComms/Stolen.PNG)](/assets/images/CompComms/Stolen.PNG){: .full}
+
+At this point, you'll start getting flooded with notifications as thousands of messages pertaining to the bots communications get forwarded across from the previous chat, to your chat!
+
+<center>
+<video width="480" height="320" controls="controls">
+  <source src="/assets/images/CompComms/StolenComms.webm" type="video/webm">
+</video>
+</center>
+
+We can see in the above, all of the forwarded messages relate to the IP address "84.38.132[.]12". This is not a victim. This is threat actor themselves. 
+
+### Analysis of communications
+
+By "communications", I'm referencing the data that has been stolen from the machines for which this malware has been executed on. For this particular sample, this data is in the form of Keylog data - stored in files `UserKeylogger.txt` or .png files that are screenshots of the users desktop. All screenshots below are screenshots of the threat actor desktop and their backend infra. There are no victim screenshots included. The threat actor must've tested his payload on his own machine, in order to check whether the Telegram Bot integration is working. 
+
+In the screenshots of the desktop, we can observe them sending out malspam and attempting to phish other victims. I will blur out all victim details included from the threat actors desktop. 
+
+#### Attribution
+
+First of all, how can we prove that the screenshots that we've been forwarded, from the Telegram bot, are actually the threat actor's desktop. Firstly, we observed a screenshot of the actor developing a phishing page using PHP source code that appears to use a different set of Telegram tokens for exfiltration of credentials:
+
+[![8](/assets/images/CompComms/PHP_Info_Steal.png)](/assets/images/CompComms/Stolen.png){: .full}
+
+So we've established from the screenshots that this threat actor has been using Telegram Tokens in another campaign - in order to steal credentials likely via phishing. This doesn't neccesarily prove it is the same threat actor, so we can dig deeper.
+
+From the [malware analysis blog post](https://polygonben.github.io/malware%20analysis/Nova-Analysis/), we were able to ascertain:
+
+* Nova sample originated from a .7z attachment (`AWB DHL #84411.7z`) 
+* Email was sent from an email with the subject `DHL - Shipment Document // Arrival Notice - AWB 13700658`. 
+* Email was sent from the user `noreplydhl[@]windhym[.]site`
+
+From the stolen screenshots, we can find multiple strands of evidence linking the Nova malware sample, and the domains used for this phishing campaign, directly to the same individual:
+
+[![13](/assets/images/CompComms/DHL_Campaign2.png)](/assets/images/CompComms/DHL_Campaign2.png){: .full}
+
+[![9](/assets/images/CompComms/DHL_Email.png)](/assets/images/CompComms/DHL_Email.png){: .full}
+
+[![10](/assets/images/CompComms/Nova.png)](/assets/images/CompComms/Nova.png){: .full}
+
+[![11](/assets/images/CompComms/windhym_site.png)](/assets/images/CompComms/windhym_site.png){: .full}
+
+[![12](/assets/images/CompComms/CloudflareRegistration.png)](/assets/images/CompComms/CloudflareRegistration.png){: .full}
+
+
+To summarize, from the screenshots we can reach the following conclusions:
+
+1. Threat actor has used Telegram Bot & API within PHP that is likely used on a credential harvesting campaign
+
+2. Threat actor has been inspecting emails with the same subject & attachment name as the ones for which this Nova sample originated
+
+3. Threat actor owns the domain `windhym[.]site` (for which emails were sent) under a namecheap account `myshoesize`
+
+With extremely high confidence, we can see that the screenshots from the users desktop is threat actor who initiated this campaign.
+
+#### Pivoting #1
+
+From these screenshots we've identified a domain `windhym[.]site` associated with the account `myshoesize`. We can pivot on these strings across the keylogging data to try uncover pertinent information.
+
+##### Pivoting on windyhm[.]site
+
+[![11](/assets/images/CompComms/Pivoting1.png)](/assets/images/CompComms/Pivoting1.png){: .full}
+
+From this we can establish two pieces of information:
+
+* DNS for `windyhm[.]site` managed on Cloudflare using the email address `Aaron.discubric[@]hotmail[.]com`
+* `windyhm[.]site` is mapped to 185.81.114[.]43
+
+We can cross reference this on VirusTotal and see this domain resolves to that IP address, and was created 2 months ago.
+
+[![14](/assets/images/CompComms/windhym_site_2.png)](/assets/images/CompComms/windhym_site_2.png){: .full}
+
+##### Pivoting on myshoesize
+
+Pivoting on myshoesize didn't reveal further information from the threat actor's keylog data.
+
+### Infrastructure Discovery
+
+From screenshots of the threat actors desktop, we can build up a picture of the infrastructure and tooling used during the campaigns. 
+
+#### Additional Domains
+
+Thankfully, we were provided a screenshot from `aaron.discubric[@]hotmail[.]com`'s registered Cloudflare account, that lists other domains used:
+
+[![15](/assets/images/CompComms/AdditionalDomains.png)](/assets/images/CompComms/AdditionalDomains.png){: .full}
+
+* `bioccon[.]com`
+* `espritpolynners[.]com`
+* `hanhanggroup[.]com`
+* `icl-grcup[.]com`
+* `inboxsmtp[.]store`
+* `inboxsmtp[.]xyz`
+* `sprinterstravels[.]co[.]uk`
+* `verifiedsmtp[.]store`
+
+I do not have the time to deep-dive analysis & pivoting for each of these, but I've done a quick check to verify:
+
+* `bioccon[.]com` - has been used for sending out [DHL malspam emails](https://www.virustotal.com/gui/file/00316489b1f5dfc3b3e8ce595ac171f887869a2d369d6048d1423d203e1fff42/content), containing a malicious [.rar archive](https://www.virustotal.com/gui/file/c905412cd3f102cee33f348f161ae915f6b62a2a2412a0393bd322d8967274e1/relations) that uses the same Telegram Bot token
+* `espritpolynners[.]com` - appears to have been used for credential harvesting from past [URLScan uploads](https://urlscan.io/search/#page.domain%3A(espritpolynners.com))
+* `hanhanggroup[.]com` has been sending out [PO malspam emails](https://www.virustotal.com/gui/domain/hanhanggroup.com/relations), containing malicious [.7z archives](https://www.virustotal.com/gui/file/278867114cec5bc446fafc5b56fc907886a9cd34e53bd607affbec6019eda1ae) that lead to further [.NET malware](https://www.virustotal.com/gui/file/ae61114460c1afcef4f510c872e4acfd833b102d108d95a16d1558cb8d9bb05d/relations) being executed (using different Telegram Bot tokens)
+* `icl-grcup[.]com` - unsure what this domain has been used for. We can see it has hosted a ["legitimate" website](https://urlscan.io/result/5c324c27-0627-4f8a-b562-2d25df211db1/) in the past
+* `inboxsmtp[.]store` - unsure what this domain has been used for. We can see it has hosted a [Wordpress webiste](https://urlscan.io/result/20d2a2a5-107a-4299-9374-d1eb7a2b275b/) in the past
+* `sprinterstravels[.]co[.]uk` - this domain has been used for sending out [ETF malspam emails](https://www.virustotal.com/gui/file/af7ca61fc09bf3361348e8f9f3d81007f5ef32fe56677345c98fd63494977ed8/relations), containing a malicious [.gz archive](https://www.virustotal.com/gui/file/92dbc682cbea39fb97532e9fc449d47607100d961f5962e91e6732125c6cf798/relations) - potentially associated with dbatloader.
+* `verifiedsmtp[.]store` - unsure what this domain has been used for. We can see it has hosted a [Wordpress webiste](https://urlscan.io/result/cad56afe-c457-47db-acc9-f30167f7da58/) in the past
+
+##### bioccon[.]com
+
+We can find evidence, from from the screenshots of this domain being hosted on 185.117.90[.]49. We also have the root credentials for the box, fast panel credentials & SMTP credentials for sending out emails:
+
+[![17](/assets/images/CompComms/bioccon.png)](/assets/images/CompComms/bioccon.png){: .full}
+
+[![18](/assets/images/CompComms/Fastpanel.png)](/assets/images/CompComms/Fastpanel.png){: .full}
+
+[![19](/assets/images/CompComms/bioccon_malspam.png)](/assets/images/CompComms/bioccon_malspam.png){: .full}
+
+We can also see further information on bioccon[.]com from the Cloudflare record configuration page
+
+[![20](/assets/images/CompComms/bioccon_DNS.png)](/assets/images/CompComms/bioccon_DNS.png){: .full}
+
+###### Mass Phishing Delivery - bioccon[.]com
+
+For the delivery of phishing emails at scale, the threat actor has been using [Gammadyne Mailer software](https://www.gammadyne.com/email_software.htm). From our screenshots, we can see this being used to send emails to 35,257 recipients:
+
+[![21](/assets/images/CompComms/bioccon_mass.png)](/assets/images/CompComms/bioccon_mass.png){: .full}
+
+##### hanhanggroup[.]com
+
+From the Cloudflare page, we discovered this domain. From the threat actors desktop we can gather further information about this domain:
+
+[![22](/assets/images/CompComms/hanhanggroup1.png)](/assets/images/CompComms/hanhanggroup1.png){: .full}
+
+Nice! We've established this hanhanggroup[.]com domain is associated with the IP address 185.80.53[.]203. We can find a screenshot from HostZealot pertaining to this IP address having registered a VPS - with plaintext SSH credentials available. 
+
+[![23](/assets/images/CompComms/hanhanggroup_VPS.png)](/assets/images/CompComms/hanhanggroup_VPS.png){: .full}
+
+We can also see the threat actor using Gammadyne Mailer, once again, but receiving errors relating to SMTP:
+
+[![24](/assets/images/CompComms/SMTP.png)](/assets/images/CompComms/SMTP.png){: .full}
+
+We can see the domain hanhanggroup[.]com has been used for DocuSign phishing attempts:
+
+[![25](/assets/images/CompComms/hanhangroup_docusign.png)](/assets/images/CompComms/hanhangroup_docusign.png){: .full}
+
+
+#### Threat Actor Credentials
+
+If you haven't caught on yet, this threat actor is not following security best practices. They also have been storing credentials for their phihsing campaigns within a text file: 
+
+[![16](/assets/images/CompComms/Creds.png)](/assets/images/CompComms/Creds.png){: .full}
+
+## Conclusion
+
+As defenders, exploiting poor operational practices by threat actors can yield significant intelligence benefits. By intercepting Telegram-based C2 communications, we’re not only gaining insight into their command structure but also uncovering details about their infrastructure, methodologies, and ongoing campaigns. In this instance, the threat actor’s critical misstep—testing his own keylogging malware on his machine—resulted in the inadvertent leakage of sensitive activity screenshots and logs. This oversight provided a rare window into his operations, allowing us to:
+
+* Map Infrastructure: Identify and analyse associated domains and credentials used in broader phishing and malware campaigns.
+* Disrupt Operations: Exploit the leaked communications to potentially interrupt the threat actor’s ongoing activities, turning their own tools against them.
+* Enhance Threat Intelligence: Use the intercepted data as a case study for refining detection rules and improving proactive threat hunting strategies.
+
+If you found this interesting, I'd encourage reading the malware analysis post [here](https://polygonben.github.io/malware%20analysis/Nova-Analysis/).
 
